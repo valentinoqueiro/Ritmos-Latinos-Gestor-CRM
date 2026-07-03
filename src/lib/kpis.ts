@@ -1,9 +1,10 @@
 import "server-only";
 import { and, countDistinct, eq, gte, inArray, lte, sql, sum } from "drizzle-orm";
 import { db } from "@/db";
-import { alumnos, gastos, pagos, suscripciones } from "@/db/schema";
+import { alumnos, gastos, leads, pagos, suscripciones } from "@/db/schema";
 import { autorizarSeccion, type UsuarioSesion } from "./auth/permissions";
 import { hoyISO, ultimosMeses } from "./fechas";
+import { tasaDeConversion, type EstadoLead } from "./reglas-leads";
 
 // KPIs del dashboard (Fase 5). Los cálculos usan las MISMAS reglas derivadas
 // que la operatoria (cobros, ocupación): un moroso del dashboard es el mismo
@@ -108,6 +109,30 @@ export async function kpisAlumnos(
     altasDelMes: altas.n,
     bajasDelMes: bajas.n,
   };
+}
+
+// --- CRM (Fase 6): leads por estado y tasa de conversión ---------------------
+// El CRM es cross-sede; estos números se muestran en el dashboard (admin y
+// owner en lectura). Definición de tasa en src/lib/reglas-leads.ts.
+
+export async function kpisCrm(usuario: UsuarioSesion): Promise<{
+  porEstado: Record<EstadoLead, number>;
+  tasa: number | null;
+}> {
+  autorizarSeccion(usuario, "dashboard");
+  const filas = await db
+    .select({ estado: leads.estado, n: countDistinct(leads.id) })
+    .from(leads)
+    .groupBy(leads.estado);
+  const porEstado = {
+    nuevo: 0,
+    contactado: 0,
+    prueba_agendada: 0,
+    convertido: 0,
+    perdido: 0,
+  } satisfies Record<EstadoLead, number>;
+  for (const f of filas) porEstado[f.estado] = f.n;
+  return { porEstado, tasa: tasaDeConversion(porEstado) };
 }
 
 export type Cumpleanero = {

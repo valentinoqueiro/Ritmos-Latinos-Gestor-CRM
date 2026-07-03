@@ -21,7 +21,7 @@
 | 3 | Cobros y estado de cuenta | ✅ Terminada (verificada en local; se prueba en producción cuando se haga el deploy de la Fase 1) | 2026-07-03 |
 | 4 | Gastos | ✅ Terminada (verificada en local) | 2026-07-03 |
 | 5 | Dashboard de KPIs | ✅ Terminada (verificada en local; KPIs de CRM se suman en la Fase 6) | 2026-07-03 |
-| 6 | CRM de leads | ⬜ Pendiente | — |
+| 6 | CRM de leads | ✅ Terminada (verificada en local) | 2026-07-03 |
 | 7 | API pública v1 | ⬜ Pendiente | — |
 | 8 | Endurecimiento y publicación | ⬜ Pendiente | — |
 
@@ -552,6 +552,14 @@ Al terminar: verificá los criterios de aceptación de la Fase 8 de PLAN.md junt
 - **Autorización transversal**: matriz de permisos pura en `src/lib/auth/permissions.ts` (testeada) + guards de pantalla (`guards.ts`) y de API (`api-guards.ts`). El alcance por sede se resuelve siempre en el servidor (`src/lib/sedes.ts`).
 - **Diseño**: identidad heredada de la marca de la landing (rojo #d93240, tinta #262325, Bebas Neue + Inter), panel claro mobile-first con barra inferior en celular. No había skill `frontend-design` disponible en el entorno de ejecución; el requisito de diseño propio se cumplió manualmente (queda la instrucción en los prompts por si la skill existe en sesiones futuras).
 - **Nota operativa**: quedó una ruta interna de ejemplo (`/api/interno/sedes`) que demuestra el filtrado por sede en la API; las fases siguientes reutilizan ese patrón.
+
+## Decisiones de implementación tomadas (Fase 6, 2026-07-03)
+
+- **Transiciones del pipeline** validadas en servidor con reglas puras testeadas (`src/lib/reglas-leads.ts`): se puede perder desde cualquier estado abierto, convertir requiere al menos contacto previo, los estados finales no se mueven, sin retrocesos.
+- **Tasa de conversión** = convertidos / (convertidos + perdidos); los leads aún abiertos no cuentan; sin desenlaces muestra "—" (no 0%).
+- **Conversión**: formulario con los datos del lead precargados (nombre partido, teléfono, sede de interés); al crear el alumno redirige directo a elegir plan/suscripción. El vínculo lead→alumno queda guardado.
+- **Clase de prueba**: fecha futura + horario activo existente (de cualquier sede); sin cupos ni asistencia propios.
+- El modelo ya distingue `origen` manual/API con campo `fuente` — la ingesta externa llega en la Fase 7 sin tocar el esquema.
 
 ## Decisiones de implementación tomadas (Fase 5, 2026-07-03)
 

@@ -292,6 +292,50 @@ export const gastos = pgTable("gastos", {
 export type CategoriaGasto = typeof categoriasGasto.$inferSelect;
 export type Gasto = typeof gastos.$inferSelect;
 
+// ---------------------------------------------------------------------------
+// CRM de leads (Fase 6) — solo admin, cross-sede
+// ---------------------------------------------------------------------------
+
+// Pipeline (PLAN.md): nuevo → contactado → prueba agendada → convertido / perdido.
+// Transiciones válidas en src/lib/reglas-leads.ts.
+export const estadoLeadEnum = pgEnum("estado_lead", [
+  "nuevo",
+  "contactado",
+  "prueba_agendada",
+  "convertido",
+  "perdido",
+]);
+
+// Origen: carga manual hoy; "api" queda listo para la ingesta de la Fase 7
+// (Meta Ads, formularios, agentes) con la fuente identificada en texto.
+export const origenLeadEnum = pgEnum("origen_lead", ["manual", "api"]);
+
+export const leads = pgTable("leads", {
+  id: serial("id").primaryKey(),
+  nombre: text("nombre").notNull(),
+  telefono: text("telefono").notNull(),
+  // Sede de interés opcional: el CRM es cross-sede.
+  sedeInteresId: integer("sede_interes_id").references(() => sedes.id),
+  origen: origenLeadEnum("origen").notNull().default("manual"),
+  fuente: text("fuente"),
+  nota: text("nota"),
+  estado: estadoLeadEnum("estado").notNull().default("nuevo"),
+  // Clase de prueba: fecha + horario existente, sin sobre-ingeniería.
+  pruebaFecha: date("prueba_fecha"),
+  pruebaHorarioId: integer("prueba_horario_id").references(() => horarios.id),
+  motivoPerdida: text("motivo_perdida"),
+  // Al convertir queda el vínculo con el alumno creado.
+  alumnoId: integer("alumno_id").references(() => alumnos.id),
+  creadoEn: timestamp("creado_en", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  actualizadoEn: timestamp("actualizado_en", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export type Lead = typeof leads.$inferSelect;
+
 export type Sede = typeof sedes.$inferSelect;
 export type Usuario = typeof usuarios.$inferSelect;
 export type Disciplina = typeof disciplinas.$inferSelect;

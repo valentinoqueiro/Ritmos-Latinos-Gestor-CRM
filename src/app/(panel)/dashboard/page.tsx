@@ -2,7 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { requerirSeccion } from "@/lib/auth/guards";
 import { cobrosDeSede, type CobroDeSuscripcion } from "@/lib/cobros";
-import { cumpleanosDelMes, kpisAlumnos, serieFinanciera } from "@/lib/kpis";
+import {
+  cumpleanosDelMes,
+  kpisAlumnos,
+  kpisCrm,
+  serieFinanciera,
+} from "@/lib/kpis";
+import { ETIQUETA_ESTADO_LEAD, type EstadoLead } from "@/lib/reglas-leads";
 import {
   DIAS,
   formatoHora,
@@ -74,13 +80,14 @@ export default async function PaginaDashboard({
   const sedeIds = alcance.map((s) => s.id);
   const esOwner = usuario.rol === "owner";
 
-  const [serie, alumnosKpi, cumples, cobrosPorSede, ocupacionPorSede] =
+  const [serie, alumnosKpi, cumples, cobrosPorSede, ocupacionPorSede, crm] =
     await Promise.all([
       serieFinanciera(usuario, sedeIds),
       kpisAlumnos(usuario, sedeIds),
       cumpleanosDelMes(usuario, sedeIds),
       Promise.all(alcance.map((s) => cobrosDeSede(usuario, s.id))),
       Promise.all(alcance.map((s) => horariosConOcupacion(usuario, s.id))),
+      kpisCrm(usuario),
     ]);
 
   const mesActual = serie[serie.length - 1];
@@ -271,6 +278,29 @@ export default async function PaginaDashboard({
             Por vencer ({porVencer.length})
           </h2>
           <ListaCobros cobros={porVencer} esOwner={esOwner} conSede={!sedeElegida} nombreSede={nombreSede} />
+        </div>
+      </section>
+
+      {/* CRM (cross-sede) */}
+      <section className="mt-6 rounded-2xl border border-borde bg-superficie p-4">
+        <h2 className="titulo-display text-2xl">CRM · Interesados</h2>
+        <p className="mt-1 text-xs text-tinta-suave">
+          Todas las sedes (el CRM es transversal).
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {(Object.keys(ETIQUETA_ESTADO_LEAD) as EstadoLead[]).map((estado) => (
+            <span
+              key={estado}
+              className="rounded-full border border-borde bg-fondo px-3 py-1.5 text-xs font-medium"
+            >
+              {ETIQUETA_ESTADO_LEAD[estado]}:{" "}
+              <strong>{crm.porEstado[estado]}</strong>
+            </span>
+          ))}
+          <span className="rounded-full bg-tinta px-3 py-1.5 text-xs font-semibold text-white">
+            Conversión:{" "}
+            {crm.tasa === null ? "—" : `${Math.round(crm.tasa * 100)}%`}
+          </span>
         </div>
       </section>
 

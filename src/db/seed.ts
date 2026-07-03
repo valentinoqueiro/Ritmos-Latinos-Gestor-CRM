@@ -16,7 +16,7 @@ import {
 import { hashearPassword } from "../lib/auth/password";
 import { calcularVencimiento } from "../lib/vencimientos";
 import { hoyISO } from "../lib/fechas";
-import { categoriasGasto, gastos, pagos } from "./schema";
+import { categoriasGasto, gastos, leads, pagos } from "./schema";
 
 // Datos semilla: sedes y usuarios (Fase 1) + disciplinas, horarios, planes y
 // alumnos ficticios (Fase 2). Idempotente: busca por claves naturales antes de
@@ -603,6 +603,49 @@ async function main() {
       });
     }
     await db.insert(gastos).values(filas);
+  }
+
+  // --- Leads del CRM (Fase 6) ------------------------------------------------
+  const hayLeads = await db.query.leads.findFirst();
+  if (!hayLeads) {
+    const horarioPrueba = await db.query.horarios.findFirst({
+      where: eq(horarios.disciplinaId, pole.id),
+    });
+    await db.insert(leads).values([
+      {
+        nombre: "Sofía Aguirre",
+        telefono: "381 555 3001",
+        sedeInteresId: yerbaBuena.id,
+        origen: "manual",
+        nota: "Preguntó por pole para principiantes",
+        estado: "nuevo",
+      },
+      {
+        nombre: "Martina Vega",
+        telefono: "381 555 3002",
+        sedeInteresId: aconquija.id,
+        origen: "api",
+        fuente: "Meta Ads",
+        estado: "contactado",
+      },
+      {
+        nombre: "Josefina Ríos",
+        telefono: "381 555 3003",
+        sedeInteresId: yerbaBuena.id,
+        origen: "manual",
+        estado: "prueba_agendada",
+        pruebaFecha: restarDias(hoyISO(), -7),
+        pruebaHorarioId: horarioPrueba?.id ?? null,
+      },
+      {
+        nombre: "Carla Núñez",
+        telefono: "381 555 3004",
+        origen: "api",
+        fuente: "Formulario web",
+        estado: "perdido",
+        motivoPerdida: "Le quedaba lejos",
+      },
+    ]);
   }
 
   console.log("Seed listo.");

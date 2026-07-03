@@ -2,6 +2,16 @@
 
 > Registro de cambios del sistema de gestión. Cada sesión de trabajo agrega su entrada al cierre: fecha, fase, qué se hizo, decisiones tomadas y pendientes que quedaron.
 
+## 2026-07-03 — Fase 6: CRM de leads
+
+**Hecho:**
+- Alta y gestión de leads (solo admin, cross-sede): nombre, WhatsApp, sede de interés opcional, nota, origen manual o API con fuente.
+- Pipeline con transiciones validadas en servidor y testeadas: nuevo → contactado → prueba agendada → convertido / perdido (motivo obligatorio); embudo con conteos y tasa de conversión a la vista.
+- Clase de prueba simple: fecha + horario real de cualquier sede.
+- Conversión a alumno con datos precargados y redirección directa al flujo de suscripción; vínculo lead→alumno guardado y visible.
+- KPIs de CRM en el dashboard (leads por estado + tasa de conversión), visibles para admin y owner.
+- Seed con 4 leads en distintos estados. 52 tests en verde. E2e completo del pipeline verificado en navegador; secretaria y owner bloqueados también por URL.
+
 ## 2026-07-03 — Fase 5: Dashboard de KPIs
 
 **Hecho:**
