@@ -17,7 +17,7 @@
 | # | Fase | Estado | Fecha |
 |---|------|--------|-------|
 | 1 | Fundaciones | 🟡 En curso (código completo y verificado; falta el deploy del humano: cuentas Neon + Vercel, ver README) | 2026-07-03 |
-| 2 | Núcleo operativo | ⬜ Pendiente | — |
+| 2 | Núcleo operativo | ✅ Terminada (verificada en local; se prueba en producción cuando se haga el deploy de la Fase 1) | 2026-07-03 |
 | 3 | Cobros y estado de cuenta | ⬜ Pendiente | — |
 | 4 | Gastos | ⬜ Pendiente | — |
 | 5 | Dashboard de KPIs | ⬜ Pendiente | — |
@@ -552,6 +552,15 @@ Al terminar: verificá los criterios de aceptación de la Fase 8 de PLAN.md junt
 - **Autorización transversal**: matriz de permisos pura en `src/lib/auth/permissions.ts` (testeada) + guards de pantalla (`guards.ts`) y de API (`api-guards.ts`). El alcance por sede se resuelve siempre en el servidor (`src/lib/sedes.ts`).
 - **Diseño**: identidad heredada de la marca de la landing (rojo #d93240, tinta #262325, Bebas Neue + Inter), panel claro mobile-first con barra inferior en celular. No había skill `frontend-design` disponible en el entorno de ejecución; el requisito de diseño propio se cumplió manualmente (queda la instrucción en los prompts por si la skill existe en sesiones futuras).
 - **Nota operativa**: quedó una ruta interna de ejemplo (`/api/interno/sedes`) que demuestra el filtrado por sede en la API; las fases siguientes reutilizan ese patrón.
+
+## Decisiones de implementación tomadas (Fase 2, 2026-07-03)
+
+- **Decisión abierta 1 aplicada**: los horarios cuelgan de la **disciplina** por sede; el plan define frecuencia y disciplina(s). La ocupación de un horario suma inscriptos de todos los planes.
+- **Horario implícito**: en planes tipo "disciplina" y "pack" la suscripción se asigna automáticamente a **todos** los horarios activos de sus disciplinas (no hay elección); en tipo "frecuencia" el alumno elige exactamente N horarios. Reglas puras y testeadas en `src/lib/reglas-suscripcion.ts`.
+- **Cupo estricto**: no se puede inscribir en un horario completo; no hay override de admin en v1 (el criterio más simple; se revisa si molesta en la práctica).
+- **DNI único por sede** (las sedes operan 100% separadas); alta rápida con nombre, apellido, DNI y teléfono obligatorios; email y fecha de nacimiento opcionales.
+- **Acceso cruzado = 404**: pedir una ficha de otra sede devuelve "no encontrado" (no se filtra qué existe en otras sedes).
+- **Baja de suscripción**: conserva los horarios como historial; la ocupación cuenta solo suscripciones activas, así que la baja libera el cupo sola.
 
 ---
 

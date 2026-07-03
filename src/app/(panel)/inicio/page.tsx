@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { requerirSeccion } from "@/lib/auth/guards";
 import { sedeActiva } from "@/lib/sedes";
 
@@ -55,9 +56,18 @@ export default async function PaginaInicio() {
         Accesos rápidos
       </h2>
       <div className="mt-3 flex flex-wrap gap-2">
-        <span className="cursor-not-allowed rounded-full border border-borde bg-superficie px-4 py-2 text-sm text-tinta-suave/60">
-          + Nuevo alumno · fase 2
-        </span>
+        <Link
+          href="/alumnos/nuevo"
+          className="rounded-full bg-marca px-4 py-2 text-sm font-semibold text-white transition hover:bg-marca-oscuro"
+        >
+          + Nuevo alumno
+        </Link>
+        <Link
+          href="/horarios"
+          className="rounded-full border border-borde bg-superficie px-4 py-2 text-sm font-medium transition hover:border-marca"
+        >
+          Ver horarios de hoy
+        </Link>
         <span className="cursor-not-allowed rounded-full border border-borde bg-superficie px-4 py-2 text-sm text-tinta-suave/60">
           + Registrar pago · fase 3
         </span>

@@ -1,0 +1,150 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { requerirSeccion } from "@/lib/auth/guards";
+import { DIAS, fichaDeAlumno, formatoHora, formatoMonto } from "@/lib/operativa";
+import { Campo, Input } from "@/componentes/campos";
+import { FormAccion } from "@/componentes/form-accion";
+import { darDeBajaSuscripcion } from "../acciones";
+
+export const metadata: Metadata = { title: "Ficha del alumno" };
+
+function formatoFecha(iso: string): string {
+  const [a, m, d] = iso.split("-");
+  return `${d}/${m}/${a}`;
+}
+
+export default async function PaginaFichaAlumno({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const usuario = await requerirSeccion("operativa");
+  const { id } = await params;
+  const ficha = await fichaDeAlumno(usuario, Number(id));
+  if (!ficha) notFound();
+  const { alumno, suscripciones } = ficha;
+  const telefonoWa = alumno.telefono.replace(/\D/g, "");
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="titulo-display text-4xl">
+            {alumno.nombre} {alumno.apellido}
+          </h1>
+          <p className="mt-1 text-sm text-tinta-suave">
+            DNI {alumno.dni}
+            {alumno.fechaNacimiento
+              ? ` · Nació el ${formatoFecha(alumno.fechaNacimiento)}`
+              : ""}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Link
+            href={`/alumnos/${alumno.id}/editar`}
+            className="rounded-lg border border-borde bg-superficie px-4 py-2.5 text-sm font-semibold transition hover:bg-fondo"
+          >
+            Editar
+          </Link>
+          <Link
+            href={`/alumnos/${alumno.id}/suscribir`}
+            className="rounded-lg bg-marca px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-marca-oscuro"
+          >
+            + Suscripción
+          </Link>
+        </div>
+      </div>
+
+      <div className="mt-4 flex flex-wrap gap-2 text-sm">
+        <a
+          href={`https://wa.me/${telefonoWa}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="rounded-full bg-ok/10 px-3 py-1.5 font-medium text-ok transition hover:bg-ok/20"
+        >
+          WhatsApp {alumno.telefono}
+        </a>
+        {alumno.email ? (
+          <span className="rounded-full bg-superficie px-3 py-1.5 text-tinta-suave ring-1 ring-borde">
+            {alumno.email}
+          </span>
+        ) : null}
+      </div>
+
+      <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-tinta-suave">
+        Suscripciones
+      </h2>
+      {suscripciones.length === 0 ? (
+        <div className="mt-3 rounded-2xl border border-dashed border-borde bg-superficie px-6 py-10 text-center">
+          <p className="font-medium">Sin suscripciones todavía.</p>
+          <p className="mt-1 text-sm text-tinta-suave">
+            Creale una con el botón «+ Suscripción».
+          </p>
+        </div>
+      ) : (
+        <ul className="mt-3 grid gap-3">
+          {suscripciones.map((sub) => (
+            <li
+              key={sub.id}
+              className="rounded-2xl border border-borde bg-superficie p-4"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="font-semibold">{sub.plan}</p>
+                <span
+                  className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                    sub.estado === "activa"
+                      ? "bg-ok/10 text-ok"
+                      : "bg-borde text-tinta-suave"
+                  }`}
+                >
+                  {sub.estado === "activa" ? "Activa" : "Dada de baja"}
+                </span>
+              </div>
+              <p className="mt-1 text-sm text-tinta-suave">
+                Alta el {formatoFecha(sub.fechaAlta)} ·{" "}
+                {formatoMonto(sub.montoAlta)} al momento del alta
+                {sub.fechaBaja
+                  ? ` · Baja el ${formatoFecha(sub.fechaBaja)}${
+                      sub.motivoBaja ? ` (${sub.motivoBaja})` : ""
+                    }`
+                  : ""}
+              </p>
+              {sub.horarios.length > 0 ? (
+                <ul className="mt-2 flex flex-wrap gap-1.5">
+                  {sub.horarios.map((h, i) => (
+                    <li
+                      key={i}
+                      className="rounded-full bg-fondo px-2.5 py-1 text-xs font-medium text-tinta-suave ring-1 ring-borde"
+                    >
+                      {h.disciplina} · {DIAS[h.diaSemana]} {formatoHora(h.hora)}
+                      {h.nota ? ` (${h.nota})` : ""}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              {sub.estado === "activa" ? (
+                <details className="mt-3">
+                  <summary className="cursor-pointer text-sm font-medium text-marca-oscuro">
+                    Dar de baja…
+                  </summary>
+                  <FormAccion
+                    accion={darDeBajaSuscripcion}
+                    textoBoton="Confirmar baja"
+                    variante="peligro"
+                    className="mt-2 max-w-sm"
+                  >
+                    <input type="hidden" name="suscripcionId" value={sub.id} />
+                    <Campo etiqueta="Motivo (opcional)">
+                      <Input name="motivo" placeholder="Ej.: se mudó" />
+                    </Campo>
+                  </FormAccion>
+                </details>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { asc } from "drizzle-orm";
 import { db } from "@/db";
 import { usuarios } from "@/db/schema";
@@ -25,11 +26,29 @@ export default async function PaginaConfiguracion() {
   return (
     <div>
       <h1 className="titulo-display text-4xl">Configuración</h1>
-      <p className="mt-1 text-sm text-tinta-suave">
-        Planes, precios, horarios y categorías se suman en las próximas fases.
-      </p>
 
-      <section className="mt-6">
+      <div className="mt-6 grid gap-3 sm:grid-cols-2">
+        <Link
+          href="/configuracion/disciplinas"
+          className="rounded-2xl border border-borde bg-superficie p-4 transition hover:border-marca"
+        >
+          <p className="font-semibold">Disciplinas y horarios</p>
+          <p className="mt-1 text-sm text-tinta-suave">
+            Actividades de la sede, clases semanales y cupos.
+          </p>
+        </Link>
+        <Link
+          href="/configuracion/planes"
+          className="rounded-2xl border border-borde bg-superficie p-4 transition hover:border-marca"
+        >
+          <p className="font-semibold">Planes y precios</p>
+          <p className="mt-1 text-sm text-tinta-suave">
+            Planes por disciplina, pack o frecuencia, con historial de precios.
+          </p>
+        </Link>
+      </div>
+
+      <section className="mt-8">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-tinta-suave">
           Sedes
         </h2>
