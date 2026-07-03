@@ -20,7 +20,7 @@
 | 2 | Núcleo operativo | ✅ Terminada (verificada en local; se prueba en producción cuando se haga el deploy de la Fase 1) | 2026-07-03 |
 | 3 | Cobros y estado de cuenta | ✅ Terminada (verificada en local; se prueba en producción cuando se haga el deploy de la Fase 1) | 2026-07-03 |
 | 4 | Gastos | ✅ Terminada (verificada en local) | 2026-07-03 |
-| 5 | Dashboard de KPIs | ⬜ Pendiente | — |
+| 5 | Dashboard de KPIs | ✅ Terminada (verificada en local; KPIs de CRM se suman en la Fase 6) | 2026-07-03 |
 | 6 | CRM de leads | ⬜ Pendiente | — |
 | 7 | API pública v1 | ⬜ Pendiente | — |
 | 8 | Endurecimiento y publicación | ⬜ Pendiente | — |
@@ -552,6 +552,14 @@ Al terminar: verificá los criterios de aceptación de la Fase 8 de PLAN.md junt
 - **Autorización transversal**: matriz de permisos pura en `src/lib/auth/permissions.ts` (testeada) + guards de pantalla (`guards.ts`) y de API (`api-guards.ts`). El alcance por sede se resuelve siempre en el servidor (`src/lib/sedes.ts`).
 - **Diseño**: identidad heredada de la marca de la landing (rojo #d93240, tinta #262325, Bebas Neue + Inter), panel claro mobile-first con barra inferior en celular. No había skill `frontend-design` disponible en el entorno de ejecución; el requisito de diseño propio se cumplió manualmente (queda la instrucción en los prompts por si la skill existe en sesiones futuras).
 - **Nota operativa**: quedó una ruta interna de ejemplo (`/api/interno/sedes`) que demuestra el filtrado por sede en la API; las fases siguientes reutilizan ese patrón.
+
+## Decisiones de implementación tomadas (Fase 5, 2026-07-03)
+
+- **Los KPIs reutilizan la lógica derivada de la operatoria** (`src/lib/kpis.ts` + `cobros.ts` + `horariosConOcupacion`): el moroso del dashboard es el mismo del listado de la secretaria, por construcción.
+- **Gráficos**: SVG propio server-rendered sin dependencias (`src/componentes/grafico-lineas.tsx`), siguiendo la skill dataviz: un solo eje, leyenda + identificación no solo por color, tabla alternativa, paleta validada con `validate_palette.js` (ingresos #2563b8, gastos #d93240, resultado #7c4dbe — ΔE CVD 67).
+- **Selector Consolidado / por sede** dentro del dashboard (independiente del selector de sede operativo del header); el owner aterriza acá y no tiene ningún link a pantallas operativas.
+- **Cumpleaños del mes**: alumnos con al menos una suscripción activa (los dados de baja no aparecen).
+- **Ingresos del mes** = suma de pagos registrados con fecha de pago en el mes calendario (hora argentina).
 
 ## Decisiones de implementación tomadas (Fase 4, 2026-07-03)
 

@@ -2,6 +2,19 @@
 
 > Registro de cambios del sistema de gestión. Cada sesión de trabajo agrega su entrada al cierre: fecha, fase, qué se hizo, decisiones tomadas y pendientes que quedaron.
 
+## 2026-07-03 — Fase 5: Dashboard de KPIs
+
+**Hecho:**
+- KPIs del mes con selector Consolidado / por sede: ingresos, gastos, resultado (verde/rojo según signo), alumnos activos con altas y bajas del mes.
+- Gráfico de evolución de 6 meses (ingresos/gastos/resultado) en SVG propio sin dependencias, con paleta validada por la skill dataviz, tooltips nativos, leyenda y vista de tabla.
+- Ocupación por clase con barras de progreso (verde/ámbar/rojo según cupo) por sede.
+- Morosos y por vencer con monto de cuota vigente (misma lógica derivada que usa la secretaria) y cumpleaños del mes con edad y WhatsApp.
+- Accesos verificados por navegador: owner solo lectura (sin ningún link operativo), admin con selector, secretaria bloqueada también por URL.
+- Números verificados contra la base: ingresos $26.000 / gastos $2.211.500 / 6 activos coinciden con las sumas SQL; el filtro por sede cambia los valores correctamente.
+- 45 tests en verde (se suman los de claves de meses de la serie).
+
+**Pendiente:** KPIs del CRM (leads por estado y conversión) se agregan al dashboard en la Fase 6.
+
 ## 2026-07-03 — Fase 4: Gastos
 
 **Hecho:**
