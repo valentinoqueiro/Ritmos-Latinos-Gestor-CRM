@@ -19,7 +19,7 @@
 | 1 | Fundaciones | 🟡 En curso (código completo y verificado; falta el deploy del humano: cuentas Neon + Vercel, ver README) | 2026-07-03 |
 | 2 | Núcleo operativo | ✅ Terminada (verificada en local; se prueba en producción cuando se haga el deploy de la Fase 1) | 2026-07-03 |
 | 3 | Cobros y estado de cuenta | ✅ Terminada (verificada en local; se prueba en producción cuando se haga el deploy de la Fase 1) | 2026-07-03 |
-| 4 | Gastos | ⬜ Pendiente | — |
+| 4 | Gastos | ✅ Terminada (verificada en local) | 2026-07-03 |
 | 5 | Dashboard de KPIs | ⬜ Pendiente | — |
 | 6 | CRM de leads | ⬜ Pendiente | — |
 | 7 | API pública v1 | ⬜ Pendiente | — |
@@ -552,6 +552,12 @@ Al terminar: verificá los criterios de aceptación de la Fase 8 de PLAN.md junt
 - **Autorización transversal**: matriz de permisos pura en `src/lib/auth/permissions.ts` (testeada) + guards de pantalla (`guards.ts`) y de API (`api-guards.ts`). El alcance por sede se resuelve siempre en el servidor (`src/lib/sedes.ts`).
 - **Diseño**: identidad heredada de la marca de la landing (rojo #d93240, tinta #262325, Bebas Neue + Inter), panel claro mobile-first con barra inferior en celular. No había skill `frontend-design` disponible en el entorno de ejecución; el requisito de diseño propio se cumplió manualmente (queda la instrucción en los prompts por si la skill existe en sesiones futuras).
 - **Nota operativa**: quedó una ruta interna de ejemplo (`/api/interno/sedes`) que demuestra el filtrado por sede en la API; las fases siguientes reutilizan ese patrón.
+
+## Decisiones de implementación tomadas (Fase 4, 2026-07-03)
+
+- **Categorías de gasto globales** (compartidas entre sedes: Alquiler, Sueldos…), gestionadas en Configuración; se desactivan, no se borran. El gasto en sí siempre pertenece a una sede.
+- **Los gastos sí se pueden eliminar** (además de editar): son carga manual propensa a errores y no hay nada derivado de ellos que se rompa. Fecha futura no permitida.
+- **Filtros del listado**: mes (default: el actual), sede (default: todas), categoría y tipo, con totales del período filtrado (total / fijos / variables).
 
 ## Decisiones de implementación tomadas (Fase 3, 2026-07-03)
 

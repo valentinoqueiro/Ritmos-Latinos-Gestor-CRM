@@ -253,6 +253,45 @@ export const configuracion = pgTable("configuracion", {
   valor: text("valor").notNull(),
 });
 
+// ---------------------------------------------------------------------------
+// Gastos (Fase 4) — solo admin
+// ---------------------------------------------------------------------------
+
+// Categorías compartidas entre sedes (Alquiler, Sueldos…), configurables.
+// Se desactivan, no se borran (los gastos históricos las referencian).
+export const categoriasGasto = pgTable(
+  "categorias_gasto",
+  {
+    id: serial("id").primaryKey(),
+    nombre: text("nombre").notNull(),
+    activa: boolean("activa").notNull().default(true),
+  },
+  (tabla) => [uniqueIndex("categorias_gasto_nombre_unico").on(tabla.nombre)],
+);
+
+export const tipoGastoEnum = pgEnum("tipo_gasto", ["fijo", "variable"]);
+
+export const gastos = pgTable("gastos", {
+  id: serial("id").primaryKey(),
+  sedeId: integer("sede_id")
+    .notNull()
+    .references(() => sedes.id),
+  tipo: tipoGastoEnum("tipo").notNull(),
+  categoriaId: integer("categoria_id")
+    .notNull()
+    .references(() => categoriasGasto.id),
+  monto: numeric("monto", { precision: 12, scale: 2 }).notNull(),
+  fecha: date("fecha").notNull(),
+  descripcion: text("descripcion"),
+  registradoPorId: integer("registrado_por_id").references(() => usuarios.id),
+  creadoEn: timestamp("creado_en", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export type CategoriaGasto = typeof categoriasGasto.$inferSelect;
+export type Gasto = typeof gastos.$inferSelect;
+
 export type Sede = typeof sedes.$inferSelect;
 export type Usuario = typeof usuarios.$inferSelect;
 export type Disciplina = typeof disciplinas.$inferSelect;

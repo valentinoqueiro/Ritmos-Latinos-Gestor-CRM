@@ -9,6 +9,8 @@ import { sedesVisibles } from "@/lib/sedes";
 import { Campo, Input } from "@/componentes/campos";
 import { FormAccion } from "@/componentes/form-accion";
 import { guardarUmbral } from "./acciones";
+import { alternarCategoria, crearCategoria } from "../gastos/acciones";
+import { categoriasGasto } from "@/db/schema";
 
 export const metadata: Metadata = { title: "Configuración" };
 
@@ -20,10 +22,11 @@ const ETIQUETA_ROL: Record<string, string> = {
 
 export default async function PaginaConfiguracion() {
   const usuario = await requerirSeccion("configuracion");
-  const [sedes, listaUsuarios, umbral] = await Promise.all([
+  const [sedes, listaUsuarios, umbral, categorias] = await Promise.all([
     sedesVisibles(usuario),
     db.query.usuarios.findMany({ orderBy: asc(usuarios.nombre) }),
     umbralPorVencer(),
+    db.query.categoriasGasto.findMany({ orderBy: asc(categoriasGasto.nombre) }),
   ]);
   const nombreSede = (sedeId: number | null) =>
     sedes.find((s) => s.id === sedeId)?.nombre ?? "Todas";
@@ -52,6 +55,45 @@ export default async function PaginaConfiguracion() {
           </p>
         </Link>
       </div>
+
+      <section className="mt-8 max-w-md rounded-2xl border border-borde bg-superficie p-4">
+        <h2 className="font-semibold">Categorías de gasto</h2>
+        {categorias.length > 0 ? (
+          <ul className="mt-3 flex flex-wrap gap-1.5">
+            {categorias.map((c) => (
+              <li key={c.id}>
+                <form action={alternarCategoria} className="inline">
+                  <input type="hidden" name="id" value={c.id} />
+                  <button
+                    type="submit"
+                    title={c.activa ? "Desactivar" : "Reactivar"}
+                    className={`rounded-full px-3 py-1.5 text-xs font-medium ring-1 transition ${
+                      c.activa
+                        ? "bg-fondo text-tinta ring-borde hover:ring-marca"
+                        : "bg-superficie text-tinta-suave/60 ring-borde line-through"
+                    }`}
+                  >
+                    {c.nombre}
+                  </button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        <p className="mt-2 text-xs text-tinta-suave">
+          Tocá una categoría para desactivarla o reactivarla.
+        </p>
+        <FormAccion
+          accion={crearCategoria}
+          textoBoton="Agregar categoría"
+          variante="secundario"
+          className="mt-3 flex items-end gap-3"
+        >
+          <Campo etiqueta="Nueva categoría">
+            <Input name="nombre" required placeholder="Ej.: Alquiler" />
+          </Campo>
+        </FormAccion>
+      </section>
 
       <section className="mt-8 max-w-md rounded-2xl border border-borde bg-superficie p-4">
         <h2 className="font-semibold">Aviso de «por vencer»</h2>

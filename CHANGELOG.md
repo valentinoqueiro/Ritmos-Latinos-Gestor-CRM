@@ -2,6 +2,15 @@
 
 > Registro de cambios del sistema de gestión. Cada sesión de trabajo agrega su entrada al cierre: fecha, fase, qué se hizo, decisiones tomadas y pendientes que quedaron.
 
+## 2026-07-03 — Fase 4: Gastos
+
+**Hecho:**
+- Categorías de gasto configurables por el admin (crear / desactivar tocándolas) en Configuración.
+- Carga, edición y eliminación de gastos por sede (tipo fijo/variable, categoría, monto, fecha, descripción), solo rol admin — verificado que secretaria y owner quedan bloqueados también por URL.
+- Listado con filtros por mes, sede, categoría y tipo, con totales del período (total / fijos / variables).
+- Seed con 6 categorías y dos meses de gastos realistas en ambas sedes (alimentan el dashboard de la Fase 5).
+- Verificación e2e: carga de gasto nuevo, filtro por sede cambia los totales (2.211.500 → 970.000), permisos.
+
 ## 2026-07-03 — Fase 3: Cobros y estado de cuenta
 
 **Hecho:**

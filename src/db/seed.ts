@@ -16,7 +16,7 @@ import {
 import { hashearPassword } from "../lib/auth/password";
 import { calcularVencimiento } from "../lib/vencimientos";
 import { hoyISO } from "../lib/fechas";
-import { pagos } from "./schema";
+import { categoriasGasto, gastos, pagos } from "./schema";
 
 // Datos semilla: sedes y usuarios (Fase 1) + disciplinas, horarios, planes y
 // alumnos ficticios (Fase 2). Idempotente: busca por claves naturales antes de
@@ -554,6 +554,56 @@ async function main() {
     telefono: "381 555 2005",
     fechaNacimiento: "1996-07-28",
   });
+
+  // --- Gastos (Fase 4): categorías y dos meses de ejemplo --------------------
+  async function asegurarCategoria(nombre: string) {
+    const existente = await db.query.categoriasGasto.findFirst({
+      where: eq(categoriasGasto.nombre, nombre),
+    });
+    if (existente) return existente;
+    const [creada] = await db
+      .insert(categoriasGasto)
+      .values({ nombre })
+      .returning();
+    return creada;
+  }
+
+  const alquiler = await asegurarCategoria("Alquiler");
+  const sueldos = await asegurarCategoria("Sueldos");
+  const servicios = await asegurarCategoria("Servicios");
+  const limpieza = await asegurarCategoria("Limpieza");
+  const publicidad = await asegurarCategoria("Publicidad");
+  await asegurarCategoria("Mantenimiento");
+
+  const hayGastos = await db.query.gastos.findFirst();
+  if (!hayGastos) {
+    const hoy = hoyISO();
+    const mesActual = `${hoy.slice(0, 7)}-05`;
+    const mesPasado = restarDias(`${hoy.slice(0, 7)}-05`, 30);
+    const filas: (typeof gastos.$inferInsert)[] = [];
+    for (const [sedeId, factor] of [
+      [aconquija.id, 1],
+      [yerbaBuena.id, 1.3],
+    ] as const) {
+      for (const fecha of [mesPasado, mesActual]) {
+        filas.push(
+          { sedeId, tipo: "fijo", categoriaId: alquiler.id, monto: (350000 * factor).toFixed(2), fecha, descripcion: "Alquiler del local" },
+          { sedeId, tipo: "fijo", categoriaId: sueldos.id, monto: (420000 * factor).toFixed(2), fecha, descripcion: "Sueldos profes" },
+          { sedeId, tipo: "variable", categoriaId: servicios.id, monto: (85000 * factor).toFixed(2), fecha, descripcion: "Luz y agua" },
+          { sedeId, tipo: "variable", categoriaId: limpieza.id, monto: (40000 * factor).toFixed(2), fecha },
+        );
+      }
+      filas.push({
+        sedeId,
+        tipo: "variable",
+        categoriaId: publicidad.id,
+        monto: (60000 * factor).toFixed(2),
+        fecha: mesActual,
+        descripcion: "Meta Ads",
+      });
+    }
+    await db.insert(gastos).values(filas);
+  }
 
   console.log("Seed listo.");
   console.log("Usuarios de prueba (contraseña: %s):", PASSWORD_PRUEBA);
