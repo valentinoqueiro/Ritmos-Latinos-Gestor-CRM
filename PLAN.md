@@ -16,7 +16,7 @@
 
 | # | Fase | Estado | Fecha |
 |---|------|--------|-------|
-| 1 | Fundaciones | ⬜ Pendiente | — |
+| 1 | Fundaciones | 🟡 En curso (código completo y verificado; falta el deploy del humano: cuentas Neon + Vercel, ver README) | 2026-07-03 |
 | 2 | Núcleo operativo | ⬜ Pendiente | — |
 | 3 | Cobros y estado de cuenta | ⬜ Pendiente | — |
 | 4 | Gastos | ⬜ Pendiente | — |
@@ -542,6 +542,16 @@ Al terminar: verificá los criterios de aceptación de la Fase 8 de PLAN.md junt
 **4. Definiciones exactas de "baja" y "vencida" para los KPIs.** Riesgo de que "bajas del mes" se infle con morosos o se pierdan bajas reales. **Recomendación (adoptada en §2):** "vencida" es siempre derivada del estado de pago y reversible pagando; "baja" es solo la acción explícita con fecha; el KPI de bajas cuenta únicamente bajas explícitas y los morosos son un listado aparte. Un moroso crónico se da de baja a mano cuando la academia lo decide. *Estado: recomendación adoptada salvo objeción antes de la Fase 5.*
 
 **5. Migración de los datos del cuaderno.** ¿Importador masivo o carga manual? **Recomendación:** carga manual asistida en la Fase 8 (con flujos de alta rápida si hacen falta): son ~90 alumnos, el volumen no justifica construir un importador, y la carga manual sirve además de capacitación para las secretarias. Riesgo asociado: si la carga inicial se percibe pesada, la adopción arranca mal — mitigación: que las altas rápidas tomen segundos por alumno y la carga pueda repartirse entre sedes. *Estado: abierta — confirmar con el cliente antes de la Fase 8.*
+
+---
+
+## Decisiones de implementación tomadas (Fase 1, 2026-07-03)
+
+- **ORM y migraciones**: Drizzle ORM + drizzle-kit; migraciones SQL versionadas en `drizzle/`. Driver `pg` estándar (portable entre Postgres local y Neon).
+- **Autenticación**: sesión propia con JWT firmado (jose) en cookie httpOnly (30 días) + contraseñas con bcrypt. Sin dependencias de servicios pagos.
+- **Autorización transversal**: matriz de permisos pura en `src/lib/auth/permissions.ts` (testeada) + guards de pantalla (`guards.ts`) y de API (`api-guards.ts`). El alcance por sede se resuelve siempre en el servidor (`src/lib/sedes.ts`).
+- **Diseño**: identidad heredada de la marca de la landing (rojo #d93240, tinta #262325, Bebas Neue + Inter), panel claro mobile-first con barra inferior en celular. No había skill `frontend-design` disponible en el entorno de ejecución; el requisito de diseño propio se cumplió manualmente (queda la instrucción en los prompts por si la skill existe en sesiones futuras).
+- **Nota operativa**: quedó una ruta interna de ejemplo (`/api/interno/sedes`) que demuestra el filtrado por sede en la API; las fases siguientes reutilizan ese patrón.
 
 ---
 
