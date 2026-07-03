@@ -5,6 +5,7 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import {
+  configuracion,
   disciplinas,
   horarios,
   planes,
@@ -13,6 +14,7 @@ import {
 } from "@/db/schema";
 import { exigirSeccion } from "@/lib/auth/guards";
 import { autorizarSede, ErrorAutorizacion } from "@/lib/auth/permissions";
+import { CLAVE_UMBRAL } from "@/lib/cobros";
 
 // Acciones de configuración (solo admin). Toda acción valida sección y sede
 // en el servidor y revalida las pantallas afectadas.
@@ -162,6 +164,36 @@ export async function editarCupo(formData: FormData): Promise<void> {
   await db.update(horarios).set({ cupo }).where(eq(horarios.id, id));
   revalidatePath("/configuracion");
   revalidatePath("/horarios");
+}
+
+// --- Parámetros (umbral de "por vencer") --------------------------------------
+
+export async function guardarUmbral(
+  _estado: EstadoAccion,
+  formData: FormData,
+): Promise<EstadoAccion> {
+  try {
+    await exigirSeccion("configuracion");
+    const dias = z.coerce
+      .number({ message: "Poné una cantidad de días" })
+      .int("Debe ser un número entero")
+      .min(0, "No puede ser negativo")
+      .max(30, "Como mucho 30 días")
+      .parse(formData.get("dias"));
+    await db
+      .insert(configuracion)
+      .values({ clave: CLAVE_UMBRAL, valor: String(dias) })
+      .onConflictDoUpdate({
+        target: configuracion.clave,
+        set: { valor: String(dias) },
+      });
+    revalidatePath("/configuracion");
+    revalidatePath("/inicio");
+    revalidatePath("/cobros");
+    return { ok: true };
+  } catch (error) {
+    return mensajeDeError(error);
+  }
 }
 
 // --- Planes y precios --------------------------------------------------------

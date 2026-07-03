@@ -2,11 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import {
   alumnos,
+  pagos,
   planes,
   planesDisciplinas,
   preciosPlan,
@@ -15,21 +16,13 @@ import {
 } from "@/db/schema";
 import { exigirSeccion } from "@/lib/auth/guards";
 import { autorizarSede, ErrorAutorizacion } from "@/lib/auth/permissions";
+import { venceVigente } from "@/lib/cobros";
+import { hoyISO } from "@/lib/fechas";
 import { horariosConOcupacion } from "@/lib/operativa";
 import { resolverHorariosDeSuscripcion } from "@/lib/reglas-suscripcion";
+import { calcularVencimiento } from "@/lib/vencimientos";
 
 export type EstadoAccion = { error?: string; ok?: boolean };
-
-const HOY_TZ = "America/Argentina/Buenos_Aires";
-
-function hoyISO(): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: HOY_TZ,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
-}
 
 function mensajeDeError(error: unknown): EstadoAccion {
   if (error instanceof ErrorAutorizacion) return { error: error.message };
@@ -233,6 +226,71 @@ export async function crearSuscripcion(
     return mensajeDeError(error);
   }
   redirect(`/alumnos/${alumnoId}`);
+}
+
+// --- Pagos (Fase 3) -------------------------------------------------------------
+
+const esquemaPago = z.object({
+  suscripcionId: z.coerce.number().int().positive(),
+  monto: z.coerce
+    .number({ message: "Poné el monto cobrado" })
+    .positive("El monto debe ser mayor a cero"),
+  medio: z.enum(["efectivo", "transferencia"], {
+    message: "Elegí el medio de pago",
+  }),
+  fechaPago: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "La fecha del pago no es válida"),
+});
+
+export async function registrarPago(
+  _estado: EstadoAccion,
+  formData: FormData,
+): Promise<EstadoAccion> {
+  let alumnoId: number;
+  try {
+    const usuario = await exigirSeccion("operativa");
+    const datos = esquemaPago.parse({
+      suscripcionId: formData.get("suscripcionId"),
+      monto: formData.get("monto"),
+      medio: formData.get("medio"),
+      fechaPago: formData.get("fechaPago"),
+    });
+    if (datos.fechaPago > hoyISO()) {
+      return { error: "La fecha del pago no puede ser futura" };
+    }
+
+    const sub = await db.query.suscripciones.findFirst({
+      where: eq(suscripciones.id, datos.suscripcionId),
+    });
+    if (!sub) return { error: "La suscripción no existe" };
+    autorizarSede(usuario, sub.sedeId);
+    if (sub.estado !== "activa") {
+      return { error: "La suscripción está dada de baja; reactivala creando una nueva" };
+    }
+    alumnoId = sub.alumnoId;
+
+    // Vencimiento rodante: desde el vencimiento vigente si está al día,
+    // desde la fecha de pago si está vencida (decisión 2, PLAN.md).
+    const vigente = await venceVigente(sub.id);
+    const vence = calcularVencimiento(vigente, datos.fechaPago);
+
+    await db.insert(pagos).values({
+      sedeId: sub.sedeId,
+      suscripcionId: sub.id,
+      monto: datos.monto.toFixed(2),
+      medio: datos.medio,
+      fechaPago: datos.fechaPago,
+      vence,
+      registradoPorId: usuario.id,
+    });
+    revalidatePath(`/alumnos/${sub.alumnoId}`);
+    revalidatePath("/inicio");
+    revalidatePath("/cobros");
+  } catch (error) {
+    return mensajeDeError(error);
+  }
+  redirect(`/alumnos/${alumnoId}?pago=ok`);
 }
 
 export async function darDeBajaSuscripcion(

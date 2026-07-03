@@ -4,7 +4,11 @@ import { asc } from "drizzle-orm";
 import { db } from "@/db";
 import { usuarios } from "@/db/schema";
 import { requerirSeccion } from "@/lib/auth/guards";
+import { umbralPorVencer } from "@/lib/cobros";
 import { sedesVisibles } from "@/lib/sedes";
+import { Campo, Input } from "@/componentes/campos";
+import { FormAccion } from "@/componentes/form-accion";
+import { guardarUmbral } from "./acciones";
 
 export const metadata: Metadata = { title: "Configuración" };
 
@@ -16,9 +20,10 @@ const ETIQUETA_ROL: Record<string, string> = {
 
 export default async function PaginaConfiguracion() {
   const usuario = await requerirSeccion("configuracion");
-  const [sedes, listaUsuarios] = await Promise.all([
+  const [sedes, listaUsuarios, umbral] = await Promise.all([
     sedesVisibles(usuario),
     db.query.usuarios.findMany({ orderBy: asc(usuarios.nombre) }),
+    umbralPorVencer(),
   ]);
   const nombreSede = (sedeId: number | null) =>
     sedes.find((s) => s.id === sedeId)?.nombre ?? "Todas";
@@ -47,6 +52,30 @@ export default async function PaginaConfiguracion() {
           </p>
         </Link>
       </div>
+
+      <section className="mt-8 max-w-md rounded-2xl border border-borde bg-superficie p-4">
+        <h2 className="font-semibold">Aviso de «por vencer»</h2>
+        <p className="mt-1 text-sm text-tinta-suave">
+          Cuántos días antes del vencimiento una cuota aparece como «por
+          vencer» (hoy: {umbral} días).
+        </p>
+        <FormAccion
+          accion={guardarUmbral}
+          textoBoton="Guardar"
+          variante="secundario"
+          className="mt-3 flex items-end gap-3"
+        >
+          <Campo etiqueta="Días de aviso">
+            <Input
+              name="dias"
+              inputMode="numeric"
+              required
+              defaultValue={umbral}
+              className="w-24"
+            />
+          </Campo>
+        </FormAccion>
+      </section>
 
       <section className="mt-8">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-tinta-suave">

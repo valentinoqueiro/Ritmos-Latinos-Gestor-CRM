@@ -10,6 +10,7 @@ import {
 export type IconoNav =
   | "inicio"
   | "alumnos"
+  | "cobros"
   | "horarios"
   | "dashboard"
   | "gastos"
@@ -26,6 +27,7 @@ export type ItemNav = {
 const TODOS_LOS_ITEMS: ItemNav[] = [
   { href: "/inicio", etiqueta: "Inicio", icono: "inicio", seccion: "operativa" },
   { href: "/alumnos", etiqueta: "Alumnos", icono: "alumnos", seccion: "operativa" },
+  { href: "/cobros", etiqueta: "Cobros", icono: "cobros", seccion: "operativa" },
   { href: "/horarios", etiqueta: "Horarios", icono: "horarios", seccion: "operativa" },
   { href: "/dashboard", etiqueta: "Dashboard", icono: "dashboard", seccion: "dashboard" },
   { href: "/gastos", etiqueta: "Gastos", icono: "gastos", seccion: "gastos" },

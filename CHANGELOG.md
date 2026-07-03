@@ -2,6 +2,18 @@
 
 > Registro de cambios del sistema de gestión. Cada sesión de trabajo agrega su entrada al cierre: fecha, fase, qué se hizo, decisiones tomadas y pendientes que quedaron.
 
+## 2026-07-03 — Fase 3: Cobros y estado de cuenta
+
+**Hecho:**
+- Registro manual de pagos por suscripción: monto sugerido por el precio vigente (editable, queda lo cobrado de verdad), efectivo/transferencia, fecha (pasada permitida, futura no), y aviso de hasta cuándo queda habilitado.
+- **Vencimiento rodante** implementado y testeado (16 tests): mismo día del mes siguiente con manejo de fin de mes (31/01→28/02, bisiestos, cruce de año). Decisión 2 confirmada por el cliente: el pago anticipado corre desde el vencimiento vigente (no se pierden días); vencido o primer pago, desde la fecha de pago.
+- Estados **siempre derivados** (nunca guardados): al día / por vencer / vencida; "sin pagos" cuenta como vencida. Umbral de "por vencer" configurable por el admin (default 5 días).
+- Ficha del alumno con estado de cuota por suscripción, historial de pagos y botón "Registrar pago"; pantalla **Cobros** nueva (vencidas y por vencer con WhatsApp y botón Cobrar); inicio del día con los números reales de la sede.
+- Seed con pagos de ejemplo que cubren los cuatro casos (al día, por vencer, vencida, sin pagos). 42 tests en verde. Verificación e2e en navegador: cobro a un moroso → pasa a "Al día" con historial visible; umbral 0 vs 5 días cambia el listado.
+- Se crea `PENDIENTES.md` con la lista de tareas del humano (deploy Neon+Vercel, decisiones pendientes, arranque real).
+
+**Pendiente:** el deploy inicial sigue en manos del humano (ver PENDIENTES.md).
+
 ## 2026-07-03 — Fase 2: Núcleo operativo
 
 **Hecho:**

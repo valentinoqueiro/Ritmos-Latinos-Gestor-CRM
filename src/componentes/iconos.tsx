@@ -118,6 +118,15 @@ export function IconoSede(p: Props) {
   );
 }
 
+export function IconoCobros(p: Props) {
+  return (
+    <Svg {...p}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 6.5v11M15 8.8c-.7-.8-1.8-1.3-3-1.3-1.8 0-3.2 1-3.2 2.4 0 3.1 6.4 1.6 6.4 4.6 0 1.4-1.4 2.4-3.2 2.4-1.2 0-2.3-.5-3-1.3" />
+    </Svg>
+  );
+}
+
 export function IconoNavPorNombre({
   nombre,
   className,
@@ -127,6 +136,8 @@ export function IconoNavPorNombre({
       return <IconoInicio className={className} />;
     case "alumnos":
       return <IconoAlumnos className={className} />;
+    case "cobros":
+      return <IconoCobros className={className} />;
     case "horarios":
       return <IconoHorarios className={className} />;
     case "dashboard":

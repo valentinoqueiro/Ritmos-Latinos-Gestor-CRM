@@ -215,6 +215,44 @@ export const suscripcionesHorarios = pgTable(
   ],
 );
 
+// ---------------------------------------------------------------------------
+// Cobros (Fase 3)
+// ---------------------------------------------------------------------------
+
+export const medioPagoEnum = pgEnum("medio_pago", [
+  "efectivo",
+  "transferencia",
+]);
+
+// Pago manual registrado por la secretaría. Cada pago habilita hasta `vence`
+// (vencimiento rodante, ver src/lib/vencimientos.ts). El monto es el REAL
+// cobrado, aunque el precio del plan cambie después. El diseño admite sumar
+// otros medios (pasarela online) sin cambiar la estructura.
+export const pagos = pgTable("pagos", {
+  id: serial("id").primaryKey(),
+  sedeId: integer("sede_id")
+    .notNull()
+    .references(() => sedes.id),
+  suscripcionId: integer("suscripcion_id")
+    .notNull()
+    .references(() => suscripciones.id),
+  monto: numeric("monto", { precision: 12, scale: 2 }).notNull(),
+  medio: medioPagoEnum("medio").notNull(),
+  fechaPago: date("fecha_pago").notNull(),
+  // Hasta cuándo queda habilitado el alumno con este pago.
+  vence: date("vence").notNull(),
+  registradoPorId: integer("registrado_por_id").references(() => usuarios.id),
+  creadoEn: timestamp("creado_en", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+// Parámetros editables sin tocar código (ej.: umbral de "por vencer").
+export const configuracion = pgTable("configuracion", {
+  clave: text("clave").primaryKey(),
+  valor: text("valor").notNull(),
+});
+
 export type Sede = typeof sedes.$inferSelect;
 export type Usuario = typeof usuarios.$inferSelect;
 export type Disciplina = typeof disciplinas.$inferSelect;
@@ -223,3 +261,4 @@ export type Plan = typeof planes.$inferSelect;
 export type PrecioPlan = typeof preciosPlan.$inferSelect;
 export type Alumno = typeof alumnos.$inferSelect;
 export type Suscripcion = typeof suscripciones.$inferSelect;
+export type Pago = typeof pagos.$inferSelect;

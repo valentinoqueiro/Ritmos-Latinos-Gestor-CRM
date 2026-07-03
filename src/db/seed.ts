@@ -14,6 +14,9 @@ import {
   usuarios,
 } from "./schema";
 import { hashearPassword } from "../lib/auth/password";
+import { calcularVencimiento } from "../lib/vencimientos";
+import { hoyISO } from "../lib/fechas";
+import { pagos } from "./schema";
 
 // Datos semilla: sedes y usuarios (Fase 1) + disciplinas, horarios, planes y
 // alumnos ficticios (Fase 2). Idempotente: busca por claves naturales antes de
@@ -204,6 +207,33 @@ async function asegurarSuscripcion(
     );
   }
   return sub;
+}
+
+function restarDias(iso: string, dias: number): string {
+  const [a, m, d] = iso.split("-").map(Number);
+  const fecha = new Date(Date.UTC(a, m - 1, d - dias));
+  return fecha.toISOString().slice(0, 10);
+}
+
+/** Primer pago de una suscripción (si no tiene ninguno), N días atrás. */
+async function asegurarPagoInicial(
+  sub: { id: number; sedeId: number; montoAlta: string },
+  diasAtras: number,
+  medio: "efectivo" | "transferencia" = "efectivo",
+) {
+  const existente = await db.query.pagos.findFirst({
+    where: eq(pagos.suscripcionId, sub.id),
+  });
+  if (existente) return;
+  const fechaPago = restarDias(hoyISO(), diasAtras);
+  await db.insert(pagos).values({
+    sedeId: sub.sedeId,
+    suscripcionId: sub.id,
+    monto: sub.montoAlta,
+    medio,
+    fechaPago,
+    vence: calcularVencimiento(null, fechaPago),
+  });
 }
 
 async function main() {
@@ -418,12 +448,13 @@ async function main() {
     email: "lucia.medina@mail.test",
     fechaNacimiento: "1994-07-15",
   });
-  await asegurarSuscripcion(
+  const subLucia = await asegurarSuscripcion(
     lucia,
     planZumba.id,
     horariosZumba.map((h) => h.id),
     "2026-06-10",
   );
+  await asegurarPagoInicial(subLucia, 5); // al día
 
   const valentina = await asegurarAlumno({
     sedeId: aconquija.id,
@@ -433,12 +464,13 @@ async function main() {
     telefono: "381 555 1002",
     fechaNacimiento: "2016-07-22",
   });
-  await asegurarSuscripcion(
+  const subValentina = await asegurarSuscripcion(
     valentina,
     planKids.id,
     horariosKids.map((h) => h.id),
     "2026-06-15",
   );
+  await asegurarPagoInicial(subValentina, 33, "transferencia"); // vencida hace días
 
   await asegurarAlumno({
     sedeId: aconquija.id,
@@ -458,12 +490,13 @@ async function main() {
     email: "cami.rodriguez@mail.test",
     fechaNacimiento: "1999-07-08",
   });
-  await asegurarSuscripcion(
+  const subCamila = await asegurarSuscripcion(
     camila,
     pole3x.id,
     [horariosPole[0].id, horariosPole[1].id, horariosPole[2].id],
     "2026-05-20",
   );
+  await asegurarPagoInicial(subCamila, 10, "transferencia"); // al día
 
   const florencia = await asegurarAlumno({
     sedeId: yerbaBuena.id,
@@ -473,12 +506,13 @@ async function main() {
     telefono: "381 555 2002",
     fechaNacimiento: "2001-11-03",
   });
-  await asegurarSuscripcion(
+  const subFlorencia = await asegurarSuscripcion(
     florencia,
     pole2x.id,
     [horariosPole[6].id, horariosPole[7].id],
     "2026-06-02",
   );
+  await asegurarPagoInicial(subFlorencia, 28); // por vencer (vence en ~2 días)
 
   const marina = await asegurarAlumno({
     sedeId: yerbaBuena.id,
@@ -488,12 +522,13 @@ async function main() {
     telefono: "381 555 2003",
     fechaNacimiento: "2015-03-12",
   });
-  await asegurarSuscripcion(
+  const subMarina = await asegurarSuscripcion(
     marina,
     telas2x.id,
     [horariosTelas[0].id, horariosTelas[1].id],
     "2026-06-20",
   );
+  await asegurarPagoInicial(subMarina, 45); // vencida hace ~15 días
 
   const pablo = await asegurarAlumno({
     sedeId: yerbaBuena.id,

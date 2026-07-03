@@ -18,7 +18,7 @@
 |---|------|--------|-------|
 | 1 | Fundaciones | 🟡 En curso (código completo y verificado; falta el deploy del humano: cuentas Neon + Vercel, ver README) | 2026-07-03 |
 | 2 | Núcleo operativo | ✅ Terminada (verificada en local; se prueba en producción cuando se haga el deploy de la Fase 1) | 2026-07-03 |
-| 3 | Cobros y estado de cuenta | ⬜ Pendiente | — |
+| 3 | Cobros y estado de cuenta | ✅ Terminada (verificada en local; se prueba en producción cuando se haga el deploy de la Fase 1) | 2026-07-03 |
 | 4 | Gastos | ⬜ Pendiente | — |
 | 5 | Dashboard de KPIs | ⬜ Pendiente | — |
 | 6 | CRM de leads | ⬜ Pendiente | — |
@@ -535,7 +535,7 @@ Al terminar: verificá los criterios de aceptación de la Fase 8 de PLAN.md junt
 
 **1. ¿Los horarios pertenecen a la disciplina o a cada plan?** El brief dice que algunos planes "tienen múltiples horarios semanales fijos". Si los horarios colgaran de cada plan, "Pole 2x" y "Pole 3x" duplicarían los mismos horarios de pole y la ocupación real de la clase quedaría partida. **Recomendación (adoptada en el modelo de §2):** los horarios pertenecen a la **disciplina** en cada sede; el plan define la frecuencia y de qué disciplina(s) se eligen horarios. La ocupación de un horario suma inscriptos de todos los planes. *Estado: recomendación adoptada salvo objeción del cliente antes de la Fase 2.*
 
-**2. Pagos anticipados: ¿desde cuándo corre el nuevo período?** El brief define "30/31 días desde la fecha de pago", pero si un alumno al día paga 3 días antes de vencer, aplicarlo literal le regala 3 días perdidos. **Recomendación:** si la suscripción está al día, el nuevo período corre **desde el vencimiento vigente**; si está vencida, **desde la fecha de pago**. Es lo que cualquier secretaria esperaría y evita discusiones en el mostrador. *Estado: abierta — confirmar con el cliente antes de la Fase 3; si no hay respuesta, aplicar la recomendación y registrarlo acá.*
+**2. Pagos anticipados: ¿desde cuándo corre el nuevo período?** El brief define "30/31 días desde la fecha de pago", pero si un alumno al día paga 3 días antes de vencer, aplicarlo literal le regala 3 días perdidos. **Resolución (confirmada por el cliente el 2026-07-03): no se pierden días** — si la suscripción está al día, el nuevo período corre **desde el vencimiento vigente**; si está vencida o nunca pagó, **desde la fecha de pago**. Implementado y testeado en la Fase 3 (`src/lib/vencimientos.ts`).
 
 **3. Cambio de precio con suscripciones activas.** ¿El aumento afecta el próximo pago de todos automáticamente? **Recomendación:** sí — el próximo pago de cualquier suscripción sugiere el **precio vigente** del plan al momento de pagar (editable por la secretaria caso por caso); no hay precios "congelados" por alumno en v1. El historial de precios y el monto real de cada pago preservan toda la trazabilidad. *Estado: recomendación adoptada en §2 salvo objeción antes de la Fase 3.*
 
@@ -552,6 +552,15 @@ Al terminar: verificá los criterios de aceptación de la Fase 8 de PLAN.md junt
 - **Autorización transversal**: matriz de permisos pura en `src/lib/auth/permissions.ts` (testeada) + guards de pantalla (`guards.ts`) y de API (`api-guards.ts`). El alcance por sede se resuelve siempre en el servidor (`src/lib/sedes.ts`).
 - **Diseño**: identidad heredada de la marca de la landing (rojo #d93240, tinta #262325, Bebas Neue + Inter), panel claro mobile-first con barra inferior en celular. No había skill `frontend-design` disponible en el entorno de ejecución; el requisito de diseño propio se cumplió manualmente (queda la instrucción en los prompts por si la skill existe en sesiones futuras).
 - **Nota operativa**: quedó una ruta interna de ejemplo (`/api/interno/sedes`) que demuestra el filtrado por sede en la API; las fases siguientes reutilizan ese patrón.
+
+## Decisiones de implementación tomadas (Fase 3, 2026-07-03)
+
+- **Vencimiento rodante**: lógica pura en `src/lib/vencimientos.ts` (16 tests: fin de mes, bisiestos, cruce de año, anticipados). Cada pago guarda materializada su fecha `vence`; los estados (al día / por vencer / vencida) se derivan SIEMPRE al consultar, nunca se guardan.
+- **Decisión 2 aplicada** (cliente, 2026-07-03): pago anticipado corre desde el vencimiento vigente; vencido o primer pago, desde la fecha de pago.
+- **Sin pagos = vencida**: una suscripción activa que nunca pagó figura "Sin pagos" y cuenta como morosa.
+- **Umbral de "por vencer"** configurable por el admin en Configuración (tabla de parámetros clave/valor); default 5 días.
+- **Fecha de pago**: se permite registrar pagos con fecha pasada (cargar el pago de ayer), nunca futura.
+- **Pantalla Cobros** nueva en la navegación operativa: vencidas y por vencer con WhatsApp y botón Cobrar; el inicio del día muestra los mismos números (misma consulta derivada, `src/lib/cobros.ts` — los KPIs de la Fase 5 la reutilizan).
 
 ## Decisiones de implementación tomadas (Fase 2, 2026-07-03)
 
