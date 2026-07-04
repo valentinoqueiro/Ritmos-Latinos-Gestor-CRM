@@ -9,7 +9,8 @@ export type Rol = "secretaria" | "admin" | "owner";
 
 // Secciones funcionales del sistema (crecen con las fases del PLAN.md).
 export type Seccion =
-  | "operativa" // alumnos, suscripciones, pagos, horarios (día a día)
+  | "operativa" // alumnos, suscripciones, pagos, horarios, caja (día a día)
+  | "interesados" // alta y contacto de interesados en el mostrador
   | "gastos"
   | "dashboard" // KPIs de negocio
   | "crm"
@@ -25,8 +26,15 @@ export type UsuarioSesion = {
 };
 
 const ACCESOS: Record<Rol, ReadonlySet<Seccion>> = {
-  secretaria: new Set(["operativa"]),
-  admin: new Set(["operativa", "gastos", "dashboard", "crm", "configuracion"]),
+  secretaria: new Set(["operativa", "interesados"]),
+  admin: new Set([
+    "operativa",
+    "interesados",
+    "gastos",
+    "dashboard",
+    "crm",
+    "configuracion",
+  ]),
   owner: new Set(["dashboard"]),
 };
 
@@ -37,6 +45,15 @@ export function puedeAcceder(rol: Rol, seccion: Seccion): boolean {
 // El owner es solo-lectura en TODO el sistema.
 export function puedeEscribir(rol: Rol): boolean {
   return rol !== "owner";
+}
+
+/**
+ * Correcciones sensibles sobre contratos (cambiar vencimiento, borrar un
+ * pago con sus entregas): SOLO admin. Decisión del cliente 2026-07-04:
+ * no se crea un rol intermedio ("encargada"); estas capacidades son del admin.
+ */
+export function puedeCorregirContratos(rol: Rol): boolean {
+  return rol === "admin";
 }
 
 export class ErrorAutorizacion extends Error {

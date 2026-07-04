@@ -7,6 +7,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import {
   alumnos,
+  pagoEntregas,
   pagos,
   planes,
   planesDisciplinas,
@@ -275,14 +276,26 @@ export async function registrarPago(
     const vigente = await venceVigente(sub.id);
     const vence = calcularVencimiento(vigente, datos.fechaPago);
 
-    await db.insert(pagos).values({
-      sedeId: sub.sedeId,
-      suscripcionId: sub.id,
-      monto: datos.monto.toFixed(2),
-      medio: datos.medio,
-      fechaPago: datos.fechaPago,
-      vence,
-      registradoPorId: usuario.id,
+    await db.transaction(async (tx) => {
+      const [pago] = await tx
+        .insert(pagos)
+        .values({
+          sedeId: sub.sedeId,
+          suscripcionId: sub.id,
+          monto: datos.monto.toFixed(2),
+          fechaPago: datos.fechaPago,
+          vence,
+          registradoPorId: usuario.id,
+        })
+        .returning();
+      await tx.insert(pagoEntregas).values({
+        pagoId: pago.id,
+        sedeId: sub.sedeId,
+        monto: datos.monto.toFixed(2),
+        medio: datos.medio,
+        fecha: hoyISO(),
+        registradoPorId: usuario.id,
+      });
     });
     revalidatePath(`/alumnos/${sub.alumnoId}`);
     revalidatePath("/inicio");

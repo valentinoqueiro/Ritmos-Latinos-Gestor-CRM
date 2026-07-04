@@ -13,8 +13,6 @@ import { darDeBajaSuscripcion } from "../acciones";
 
 export const metadata: Metadata = { title: "Ficha del alumno" };
 
-const ETIQUETA_MEDIO = { efectivo: "Efectivo", transferencia: "Transferencia" };
-
 export default async function PaginaFichaAlumno({
   params,
   searchParams,
@@ -192,10 +190,7 @@ export default async function PaginaFichaAlumno({
                           key={p.id}
                           className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-fondo px-3 py-2 text-sm"
                         >
-                          <span>
-                            {formatoFecha(p.fechaPago)} ·{" "}
-                            {ETIQUETA_MEDIO[p.medio]}
-                          </span>
+                          <span>{formatoFecha(p.fechaPago)}</span>
                           <span className="font-medium">
                             {formatoMonto(p.monto)}
                             <span className="ml-2 text-xs text-tinta-suave">

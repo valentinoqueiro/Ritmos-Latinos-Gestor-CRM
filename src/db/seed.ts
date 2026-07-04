@@ -16,7 +16,7 @@ import {
 import { hashearPassword } from "../lib/auth/password";
 import { calcularVencimiento } from "../lib/vencimientos";
 import { hoyISO } from "../lib/fechas";
-import { categoriasGasto, gastos, leads, pagos } from "./schema";
+import { categoriasGasto, gastos, leads, pagoEntregas, pagos } from "./schema";
 
 // Datos semilla: sedes y usuarios (Fase 1) + disciplinas, horarios, planes y
 // alumnos ficticios (Fase 2). Idempotente: busca por claves naturales antes de
@@ -226,13 +226,23 @@ async function asegurarPagoInicial(
   });
   if (existente) return;
   const fechaPago = restarDias(hoyISO(), diasAtras);
-  await db.insert(pagos).values({
+  const [pago] = await db
+    .insert(pagos)
+    .values({
+      sedeId: sub.sedeId,
+      suscripcionId: sub.id,
+      monto: sub.montoAlta,
+      fechaPago,
+      vence: calcularVencimiento(null, fechaPago),
+    })
+    .returning();
+  // Cobrado completo en una sola entrega, el mismo día del contrato.
+  await db.insert(pagoEntregas).values({
+    pagoId: pago.id,
     sedeId: sub.sedeId,
-    suscripcionId: sub.id,
     monto: sub.montoAlta,
     medio,
-    fechaPago,
-    vence: calcularVencimiento(null, fechaPago),
+    fecha: fechaPago,
   });
 }
 

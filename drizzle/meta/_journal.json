@@ -43,6 +43,20 @@
       "when": 1783175636716,
       "tag": "0005_easy_microchip",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1783190947845,
+      "tag": "0006_caja-entregas-interesados",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1783190962736,
+      "tag": "0007_entregas-backfill",
+      "breakpoints": true
     }
   ]
 }

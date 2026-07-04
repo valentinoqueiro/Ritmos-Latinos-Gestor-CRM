@@ -18,6 +18,13 @@ export function formatoFecha(iso: string): string {
   return `${d}/${m}/${a}`;
 }
 
+/** Día de semana ISO (1 = lunes … 7 = domingo) de una fecha YYYY-MM-DD. */
+export function diaSemanaISO(iso: string): number {
+  const [a, m, d] = iso.split("-").map(Number);
+  const dia = new Date(Date.UTC(a, m - 1, d)).getUTCDay();
+  return dia === 0 ? 7 : dia;
+}
+
 /** Claves "YYYY-MM" de los últimos n meses, terminando en el mes de `hoy`. */
 export function ultimosMeses(n: number, hoy: string = hoyISO()): string[] {
   const [anio, mes] = hoy.split("-").map(Number);

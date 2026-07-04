@@ -5,6 +5,7 @@ import {
   autorizarSede,
   ErrorAutorizacion,
   puedeAcceder,
+  puedeCorregirContratos,
   sedesPermitidas,
   type Seccion,
   type UsuarioSesion,
@@ -34,6 +35,7 @@ const owner: UsuarioSesion = {
 
 const TODAS_LAS_SECCIONES: Seccion[] = [
   "operativa",
+  "interesados",
   "gastos",
   "dashboard",
   "crm",
@@ -41,9 +43,14 @@ const TODAS_LAS_SECCIONES: Seccion[] = [
 ];
 
 describe("matriz de accesos por rol (PLAN.md §2)", () => {
-  it("secretaria: solo operativa", () => {
-    expect(puedeAcceder("secretaria", "operativa")).toBe(true);
-    for (const seccion of TODAS_LAS_SECCIONES.filter((s) => s !== "operativa")) {
+  it("secretaria: operativa e interesados, nada más", () => {
+    const suyas: Seccion[] = ["operativa", "interesados"];
+    for (const seccion of suyas) {
+      expect(puedeAcceder("secretaria", seccion)).toBe(true);
+    }
+    for (const seccion of TODAS_LAS_SECCIONES.filter(
+      (s) => !suyas.includes(s),
+    )) {
       expect(puedeAcceder("secretaria", seccion)).toBe(false);
     }
   });
@@ -95,5 +102,13 @@ describe("escritura", () => {
     expect(() => autorizarEscritura(owner)).toThrow(ErrorAutorizacion);
     expect(() => autorizarEscritura(admin)).not.toThrow();
     expect(() => autorizarEscritura(secretariaSedeA)).not.toThrow();
+  });
+});
+
+describe("correcciones de contratos (decisión 2026-07-04: sin rol encargada)", () => {
+  it("solo el admin puede corregir vencimientos y borrar contratos", () => {
+    expect(puedeCorregirContratos("admin")).toBe(true);
+    expect(puedeCorregirContratos("secretaria")).toBe(false);
+    expect(puedeCorregirContratos("owner")).toBe(false);
   });
 });

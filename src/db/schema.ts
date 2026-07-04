@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   boolean,
   date,
@@ -224,10 +225,11 @@ export const medioPagoEnum = pgEnum("medio_pago", [
   "transferencia",
 ]);
 
-// Pago manual registrado por la secretaría. Cada pago habilita hasta `vence`
-// (vencimiento rodante, ver src/lib/vencimientos.ts). El monto es el REAL
-// cobrado, aunque el precio del plan cambie después. El diseño admite sumar
-// otros medios (pasarela online) sin cambiar la estructura.
+// Contrato de cuota registrado por la secretaría ("contrato" en la jerga de
+// la academia). Cada pago habilita hasta `vence` (vencimiento rodante, ver
+// src/lib/vencimientos.ts). El dinero REAL recibido vive en pago_entregas:
+// un contrato puede cobrarse en varias entregas (parciales) y con distintos
+// medios (mixto efectivo + transferencia).
 export const pagos = pgTable("pagos", {
   id: serial("id").primaryKey(),
   sedeId: integer("sede_id")
@@ -236,11 +238,88 @@ export const pagos = pgTable("pagos", {
   suscripcionId: integer("suscripcion_id")
     .notNull()
     .references(() => suscripciones.id),
+  // Monto ACORDADO de la cuota; si las entregas suman menos, hay deuda.
   monto: numeric("monto", { precision: 12, scale: 2 }).notNull(),
-  medio: medioPagoEnum("medio").notNull(),
+  // Fecha de inicio del contrato: el vencimiento se calcula desde acá.
+  // Puede retro-datarse si el alumno empezó antes de registrar el pago.
   fechaPago: date("fecha_pago").notNull(),
   // Hasta cuándo queda habilitado el alumno con este pago.
   vence: date("vence").notNull(),
+  // Motivo de una corrección admin (editar vencimiento), si la hubo.
+  nota: text("nota"),
+  registradoPorId: integer("registrado_por_id").references(() => usuarios.id),
+  creadoEn: timestamp("creado_en", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+// ---------------------------------------------------------------------------
+// Caja por turnos (Fase 8)
+// ---------------------------------------------------------------------------
+
+// Turno de caja de una sede: la secretaria lo abre al llegar y lo cierra al
+// irse (apertura/cierre libre, sin franjas fijas). El resumen del turno
+// (renovados, nuevos, efectivo, transferencia, egresos) se deriva de las
+// entregas y movimientos vinculados por FK, nunca se guarda.
+export const turnosCaja = pgTable(
+  "turnos_caja",
+  {
+    id: serial("id").primaryKey(),
+    sedeId: integer("sede_id")
+      .notNull()
+      .references(() => sedes.id),
+    abiertoPorId: integer("abierto_por_id").references(() => usuarios.id),
+    abiertoEn: timestamp("abierto_en", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    cerradoPorId: integer("cerrado_por_id").references(() => usuarios.id),
+    // null = turno abierto.
+    cerradoEn: timestamp("cerrado_en", { withTimezone: true }),
+    // Efectivo declarado al abrir; null se trata como 0.
+    efectivoInicial: numeric("efectivo_inicial", { precision: 12, scale: 2 }),
+    notaCierre: text("nota_cierre"),
+  },
+  // A lo sumo UN turno abierto por sede (protege carreras de doble apertura).
+  (tabla) => [
+    uniqueIndex("turnos_caja_abierto_unico")
+      .on(tabla.sedeId)
+      .where(sql`cerrado_en IS NULL`),
+  ],
+);
+
+// Egreso en efectivo durante el turno (retiros, compras chicas del mostrador).
+// Los gastos contables del admin viven aparte en `gastos`.
+export const movimientosCaja = pgTable("movimientos_caja", {
+  id: serial("id").primaryKey(),
+  turnoId: integer("turno_id")
+    .notNull()
+    .references(() => turnosCaja.id),
+  monto: numeric("monto", { precision: 12, scale: 2 }).notNull(),
+  concepto: text("concepto").notNull(),
+  registradoPorId: integer("registrado_por_id").references(() => usuarios.id),
+  creadoEn: timestamp("creado_en", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+// Entrega de dinero sobre un contrato (pago). El pago mixto son dos entregas
+// (una por medio); el pago parcial es una entrega menor al acordado; completar
+// la deuda agrega otra entrega al mismo contrato.
+export const pagoEntregas = pgTable("pago_entregas", {
+  id: serial("id").primaryKey(),
+  pagoId: integer("pago_id")
+    .notNull()
+    .references(() => pagos.id, { onDelete: "cascade" }),
+  // Denormalizada de pagos: caja e ingresos suman por sede sin join.
+  sedeId: integer("sede_id")
+    .notNull()
+    .references(() => sedes.id),
+  monto: numeric("monto", { precision: 12, scale: 2 }).notNull(),
+  medio: medioPagoEnum("medio").notNull(),
+  // Cuándo entró la plata (la fecha del contrato es pagos.fechaPago).
+  fecha: date("fecha").notNull(),
+  // Turno de caja en que se recibió; null = entrega fuera de turno.
+  turnoId: integer("turno_id").references(() => turnosCaja.id),
   registradoPorId: integer("registrado_por_id").references(() => usuarios.id),
   creadoEn: timestamp("creado_en", { withTimezone: true })
     .notNull()
@@ -314,6 +393,7 @@ export const leads = pgTable("leads", {
   id: serial("id").primaryKey(),
   nombre: text("nombre").notNull(),
   telefono: text("telefono").notNull(),
+  email: text("email"),
   // Sede de interés opcional: el CRM es cross-sede.
   sedeInteresId: integer("sede_interes_id").references(() => sedes.id),
   origen: origenLeadEnum("origen").notNull().default("manual"),
@@ -375,3 +455,6 @@ export type PrecioPlan = typeof preciosPlan.$inferSelect;
 export type Alumno = typeof alumnos.$inferSelect;
 export type Suscripcion = typeof suscripciones.$inferSelect;
 export type Pago = typeof pagos.$inferSelect;
+export type PagoEntrega = typeof pagoEntregas.$inferSelect;
+export type TurnoCaja = typeof turnosCaja.$inferSelect;
+export type MovimientoCaja = typeof movimientosCaja.$inferSelect;
