@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { requerirSeccion } from "@/lib/auth/guards";
 import { cobrosDeSede, type CobroDeSuscripcion } from "@/lib/cobros";
+import { formatoMonto } from "@/lib/operativa";
 import { ZONA_HORARIA } from "@/lib/fechas";
 import { sedeActiva } from "@/lib/sedes";
 import { ChipBanner, EncabezadoSeccion } from "@/componentes/encabezado";
@@ -22,12 +23,19 @@ function ListaCorta({ cobros }: { cobros: CobroDeSuscripcion[] }) {
             key={c.suscripcionId}
             className="flex items-center justify-between gap-2 text-sm"
           >
-            <Link
-              href={`/alumnos/${c.alumnoId}`}
-              className="min-w-0 truncate font-medium hover:underline"
-            >
-              {c.alumno}
-            </Link>
+            <span className="flex min-w-0 items-center gap-1.5">
+              <Link
+                href={`/alumnos/${c.alumnoId}`}
+                className="min-w-0 truncate font-medium hover:underline"
+              >
+                {c.alumno}
+              </Link>
+              {c.saldoPendiente > 0 ? (
+                <span className="shrink-0 rounded-full bg-marca-suave px-2 py-0.5 text-[11px] font-semibold text-marca-oscuro">
+                  debe {formatoMonto(c.saldoPendiente)}
+                </span>
+              ) : null}
+            </span>
             <a
               href={`https://wa.me/${wa}`}
               target="_blank"

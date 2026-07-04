@@ -1,16 +1,18 @@
 import "server-only";
 import { cache } from "react";
-import { and, asc, desc, eq, inArray, max } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, max, sum } from "drizzle-orm";
 import { db } from "@/db";
 import {
   alumnos,
   configuracion,
+  pagoEntregas,
   pagos,
   planes,
   preciosPlan,
   suscripciones,
 } from "@/db/schema";
 import { autorizarSede, type UsuarioSesion } from "./auth/permissions";
+import { saldoPendiente, totalEntregado } from "./deuda";
 import { hoyISO } from "./fechas";
 import {
   diasParaVencer,
@@ -47,6 +49,8 @@ export type CobroDeSuscripcion = {
   estado: EstadoCuota;
   diasRestantes: number | null; // negativo si venció; null si nunca pagó
   precioVigente: string | null;
+  // Deuda de pagos parciales: acordado - entregado de todos sus contratos.
+  saldoPendiente: number;
 };
 
 /**
@@ -121,15 +125,42 @@ export async function cobrosPorSedes(
 
   if (filas.length === 0) return [];
 
-  const precios = await db
-    .select()
-    .from(preciosPlan)
-    .where(inArray(preciosPlan.planId, [...new Set(filas.map((f) => f.planId))]))
-    .orderBy(desc(preciosPlan.vigenteDesde));
+  const subIds = filas.map((f) => f.suscripcionId);
+  // Acordado y entregado se suman en queries separadas: un join único entre
+  // pagos y entregas duplicaría los montos de pagos con varias entregas.
+  const [precios, acordados, entregados] = await Promise.all([
+    db
+      .select()
+      .from(preciosPlan)
+      .where(
+        inArray(preciosPlan.planId, [...new Set(filas.map((f) => f.planId))]),
+      )
+      .orderBy(desc(preciosPlan.vigenteDesde)),
+    db
+      .select({ suscripcionId: pagos.suscripcionId, total: sum(pagos.monto) })
+      .from(pagos)
+      .where(inArray(pagos.suscripcionId, subIds))
+      .groupBy(pagos.suscripcionId),
+    db
+      .select({
+        suscripcionId: pagos.suscripcionId,
+        total: sum(pagoEntregas.monto),
+      })
+      .from(pagoEntregas)
+      .innerJoin(pagos, eq(pagoEntregas.pagoId, pagos.id))
+      .where(inArray(pagos.suscripcionId, subIds))
+      .groupBy(pagos.suscripcionId),
+  ]);
   const precioVigente = new Map<number, string>();
   for (const p of precios) {
     if (!precioVigente.has(p.planId)) precioVigente.set(p.planId, p.monto);
   }
+  const acordadoPorSub = new Map(
+    acordados.map((a) => [a.suscripcionId, Number(a.total)]),
+  );
+  const entregadoPorSub = new Map(
+    entregados.map((e) => [e.suscripcionId, Number(e.total)]),
+  );
 
   return filas.map((f) => ({
     suscripcionId: f.suscripcionId,
@@ -142,6 +173,10 @@ export async function cobrosPorSedes(
     estado: estadoCuota(f.vence, hoy, umbral),
     diasRestantes: f.vence === null ? null : diasParaVencer(f.vence, hoy),
     precioVigente: precioVigente.get(f.planId) ?? null,
+    saldoPendiente: saldoPendiente(
+      acordadoPorSub.get(f.suscripcionId) ?? 0,
+      entregadoPorSub.get(f.suscripcionId) ?? 0,
+    ),
   }));
 }
 
@@ -156,12 +191,36 @@ export async function venceVigente(
   return fila?.vence ?? null;
 }
 
-/** Historial de pagos de un conjunto de suscripciones (para la ficha). */
+/**
+ * Historial de contratos de un conjunto de suscripciones (para la ficha),
+ * cada uno con sus entregas y el saldo que falta completar.
+ */
 export async function pagosDeSuscripciones(suscripcionIds: number[]) {
   if (suscripcionIds.length === 0) return [];
-  return db
+  const filas = await db
     .select()
     .from(pagos)
     .where(inArray(pagos.suscripcionId, suscripcionIds))
     .orderBy(desc(pagos.fechaPago), desc(pagos.creadoEn));
+  if (filas.length === 0) return [];
+
+  const entregas = await db
+    .select()
+    .from(pagoEntregas)
+    .where(
+      inArray(
+        pagoEntregas.pagoId,
+        filas.map((f) => f.id),
+      ),
+    )
+    .orderBy(asc(pagoEntregas.fecha), asc(pagoEntregas.creadoEn));
+
+  return filas.map((pago) => {
+    const propias = entregas.filter((e) => e.pagoId === pago.id);
+    return {
+      ...pago,
+      entregas: propias,
+      saldoPendiente: saldoPendiente(Number(pago.monto), totalEntregado(propias)),
+    };
+  });
 }

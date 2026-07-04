@@ -5,14 +5,12 @@ import { desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { preciosPlan } from "@/db/schema";
 import { requerirSeccion } from "@/lib/auth/guards";
-import { fichaDeAlumno, formatoMonto } from "@/lib/operativa";
+import { fichaDeAlumno } from "@/lib/operativa";
 import { umbralPorVencer, venceVigente } from "@/lib/cobros";
 import { formatoFecha, hoyISO } from "@/lib/fechas";
 import { calcularVencimiento, estadoCuota } from "@/lib/vencimientos";
-import { Campo, Input, Select } from "@/componentes/campos";
 import { EstadoCuotaChip } from "@/componentes/estado-cuota";
-import { FormAccion } from "@/componentes/form-accion";
-import { registrarPago } from "../../acciones";
+import { FormularioPago } from "../../formulario-pago";
 import { diasParaVencer } from "@/lib/vencimientos";
 
 export const metadata: Metadata = { title: "Registrar pago" };
@@ -70,39 +68,11 @@ export default async function PaginaRegistrarPago({
         </span>
       </div>
 
-      <FormAccion
-        accion={registrarPago}
-        textoBoton="Registrar pago"
-        className="mt-6 grid gap-4"
-      >
-        <input type="hidden" name="suscripcionId" value={sub.id} />
-        <Campo etiqueta="Monto cobrado ($)">
-          <Input
-            name="monto"
-            inputMode="numeric"
-            required
-            defaultValue={precio ? Number(precio.monto) : undefined}
-          />
-        </Campo>
-        {precio ? (
-          <p className="-mt-2 text-xs text-tinta-suave">
-            Precio vigente del plan: {formatoMonto(precio.monto)}. Podés
-            ajustar el monto si este caso es distinto; queda registrado lo que
-            se cobró de verdad.
-          </p>
-        ) : null}
-        <div className="grid grid-cols-2 gap-4">
-          <Campo etiqueta="Medio de pago">
-            <Select name="medio" required defaultValue="efectivo">
-              <option value="efectivo">Efectivo</option>
-              <option value="transferencia">Transferencia</option>
-            </Select>
-          </Campo>
-          <Campo etiqueta="Fecha del pago">
-            <Input name="fechaPago" type="date" required defaultValue={hoy} />
-          </Campo>
-        </div>
-      </FormAccion>
+      <FormularioPago
+        suscripcionId={sub.id}
+        precioSugerido={precio ? Number(precio.monto) : null}
+        hoy={hoy}
+      />
     </div>
   );
 }

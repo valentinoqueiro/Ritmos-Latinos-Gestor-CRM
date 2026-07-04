@@ -17,7 +17,9 @@ import {
 } from "@/db/schema";
 import { exigirSeccion } from "@/lib/auth/guards";
 import { autorizarSede, ErrorAutorizacion } from "@/lib/auth/permissions";
+import { turnoAbierto } from "@/lib/caja";
 import { venceVigente } from "@/lib/cobros";
+import { esDeudor, saldoPendiente, totalEntregado, validarReparto } from "@/lib/deuda";
 import { hoyISO } from "@/lib/fechas";
 import { horariosConOcupacion } from "@/lib/operativa";
 import { resolverHorariosDeSuscripcion } from "@/lib/reglas-suscripcion";
@@ -25,8 +27,13 @@ import { calcularVencimiento } from "@/lib/vencimientos";
 
 export type EstadoAccion = { error?: string; ok?: boolean };
 
+// Regla de negocio que aborta una transacción con mensaje para el usuario
+// (p. ej. doble submit que completaría dos veces la misma deuda).
+class ErrorDeNegocio extends Error {}
+
 function mensajeDeError(error: unknown): EstadoAccion {
   if (error instanceof ErrorAutorizacion) return { error: error.message };
+  if (error instanceof ErrorDeNegocio) return { error: error.message };
   if (error instanceof z.ZodError)
     return { error: error.issues[0]?.message ?? "Datos inválidos" };
   console.error(error);
@@ -231,17 +238,22 @@ export async function crearSuscripcion(
 
 // --- Pagos (Fase 3) -------------------------------------------------------------
 
+// Cobro repartido entre medios: los campos vacíos cuentan como 0.
+const montoDeMedio = z.preprocess(
+  (v) => (v === "" || v === null ? 0 : v),
+  z.coerce.number().min(0, "Los montos no pueden ser negativos"),
+);
+
 const esquemaPago = z.object({
   suscripcionId: z.coerce.number().int().positive(),
-  monto: z.coerce
-    .number({ message: "Poné el monto cobrado" })
-    .positive("El monto debe ser mayor a cero"),
-  medio: z.enum(["efectivo", "transferencia"], {
-    message: "Elegí el medio de pago",
-  }),
-  fechaPago: z
+  montoAcordado: z.coerce
+    .number({ message: "Poné el monto de la cuota" })
+    .positive("El monto de la cuota debe ser mayor a cero"),
+  efectivo: montoDeMedio,
+  transferencia: montoDeMedio,
+  fechaContrato: z
     .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "La fecha del pago no es válida"),
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "La fecha de inicio del contrato no es válida"),
 });
 
 export async function registrarPago(
@@ -249,17 +261,26 @@ export async function registrarPago(
   formData: FormData,
 ): Promise<EstadoAccion> {
   let alumnoId: number;
+  let saldo: number;
   try {
     const usuario = await exigirSeccion("operativa");
     const datos = esquemaPago.parse({
       suscripcionId: formData.get("suscripcionId"),
-      monto: formData.get("monto"),
-      medio: formData.get("medio"),
-      fechaPago: formData.get("fechaPago"),
+      montoAcordado: formData.get("montoAcordado"),
+      efectivo: formData.get("efectivo"),
+      transferencia: formData.get("transferencia"),
+      fechaContrato: formData.get("fechaContrato"),
     });
-    if (datos.fechaPago > hoyISO()) {
-      return { error: "La fecha del pago no puede ser futura" };
+    if (datos.fechaContrato > hoyISO()) {
+      return { error: "La fecha de inicio del contrato no puede ser futura" };
     }
+    const reparto = validarReparto(
+      datos.montoAcordado,
+      datos.efectivo,
+      datos.transferencia,
+    );
+    if (!reparto.ok) return { error: reparto.error };
+    saldo = reparto.saldo;
 
     const sub = await db.query.suscripciones.findFirst({
       where: eq(suscripciones.id, datos.suscripcionId),
@@ -271,10 +292,12 @@ export async function registrarPago(
     }
     alumnoId = sub.alumnoId;
 
-    // Vencimiento rodante: desde el vencimiento vigente si está al día,
-    // desde la fecha de pago si está vencida (decisión 2, PLAN.md).
+    // Vencimiento rodante DESDE LA FECHA DEL CONTRATO (no desde que entra la
+    // plata): registrar el pago una semana tarde no corre el vencimiento.
     const vigente = await venceVigente(sub.id);
-    const vence = calcularVencimiento(vigente, datos.fechaPago);
+    const vence = calcularVencimiento(vigente, datos.fechaContrato);
+    const turno = await turnoAbierto(sub.sedeId);
+    const hoy = hoyISO();
 
     await db.transaction(async (tx) => {
       const [pago] = await tx
@@ -282,24 +305,116 @@ export async function registrarPago(
         .values({
           sedeId: sub.sedeId,
           suscripcionId: sub.id,
-          monto: datos.monto.toFixed(2),
-          fechaPago: datos.fechaPago,
+          monto: datos.montoAcordado.toFixed(2),
+          fechaPago: datos.fechaContrato,
           vence,
           registradoPorId: usuario.id,
         })
         .returning();
-      await tx.insert(pagoEntregas).values({
-        pagoId: pago.id,
-        sedeId: sub.sedeId,
-        monto: datos.monto.toFixed(2),
-        medio: datos.medio,
-        fecha: hoyISO(),
-        registradoPorId: usuario.id,
-      });
+      // Una entrega por medio con plata; las entregas se fechan HOY (cuándo
+      // entró el dinero), aunque el contrato esté retro-datado.
+      await tx.insert(pagoEntregas).values(
+        entregasDelReparto(datos.efectivo, datos.transferencia).map((e) => ({
+          pagoId: pago.id,
+          sedeId: sub.sedeId,
+          monto: e.monto.toFixed(2),
+          medio: e.medio,
+          fecha: hoy,
+          turnoId: turno?.id ?? null,
+          registradoPorId: usuario.id,
+        })),
+      );
     });
     revalidatePath(`/alumnos/${sub.alumnoId}`);
     revalidatePath("/inicio");
     revalidatePath("/cobros");
+    revalidatePath("/caja");
+    revalidatePath("/dashboard");
+  } catch (error) {
+    return mensajeDeError(error);
+  }
+  redirect(
+    saldo > 0
+      ? `/alumnos/${alumnoId}?pago=deudor&saldo=${saldo}`
+      : `/alumnos/${alumnoId}?pago=ok`,
+  );
+}
+
+function entregasDelReparto(efectivo: number, transferencia: number) {
+  return [
+    { medio: "efectivo" as const, monto: efectivo },
+    { medio: "transferencia" as const, monto: transferencia },
+  ].filter((e) => e.monto > 0);
+}
+
+/**
+ * Entrega suelta sobre un contrato con saldo (completar una deuda).
+ * No toca el vencimiento: el contrato ya habilitó hasta su `vence`.
+ */
+export async function registrarEntrega(
+  _estado: EstadoAccion,
+  formData: FormData,
+): Promise<EstadoAccion> {
+  let alumnoId: number;
+  try {
+    const usuario = await exigirSeccion("operativa");
+    const datos = z
+      .object({
+        pagoId: z.coerce.number().int().positive(),
+        efectivo: montoDeMedio,
+        transferencia: montoDeMedio,
+      })
+      .parse({
+        pagoId: formData.get("pagoId"),
+        efectivo: formData.get("efectivo"),
+        transferencia: formData.get("transferencia"),
+      });
+
+    const pago = await db.query.pagos.findFirst({
+      where: eq(pagos.id, datos.pagoId),
+    });
+    if (!pago) return { error: "El contrato no existe" };
+    autorizarSede(usuario, pago.sedeId);
+    const sub = await db.query.suscripciones.findFirst({
+      where: eq(suscripciones.id, pago.suscripcionId),
+    });
+    if (!sub) return { error: "La suscripción no existe" };
+    alumnoId = sub.alumnoId;
+
+    const turno = await turnoAbierto(pago.sedeId);
+    const hoy = hoyISO();
+
+    await db.transaction(async (tx) => {
+      // El saldo se relee DENTRO de la transacción: un doble submit no
+      // puede completar la misma deuda dos veces.
+      const previas = await tx
+        .select()
+        .from(pagoEntregas)
+        .where(eq(pagoEntregas.pagoId, pago.id));
+      const saldo = saldoPendiente(Number(pago.monto), totalEntregado(previas));
+      if (!esDeudor(saldo)) {
+        throw new ErrorDeNegocio("Este contrato no tiene deuda pendiente");
+      }
+      const reparto = validarReparto(saldo, datos.efectivo, datos.transferencia);
+      if (!reparto.ok) throw new ErrorDeNegocio(reparto.error);
+
+      await tx.insert(pagoEntregas).values(
+        entregasDelReparto(datos.efectivo, datos.transferencia).map((e) => ({
+          pagoId: pago.id,
+          sedeId: pago.sedeId,
+          monto: e.monto.toFixed(2),
+          medio: e.medio,
+          fecha: hoy,
+          turnoId: turno?.id ?? null,
+          registradoPorId: usuario.id,
+        })),
+      );
+    });
+    revalidatePath(`/alumnos/${alumnoId}`);
+    revalidatePath("/inicio");
+    revalidatePath("/cobros");
+    revalidatePath("/caja");
+    revalidatePath("/dashboard");
   } catch (error) {
     return mensajeDeError(error);
   }

@@ -42,6 +42,13 @@ function TarjetaCobro({ cobro }: { cobro: CobroDeSuscripcion }) {
             : `Vence el ${formatoFecha(cobro.vence)}`
           : "Nunca pagó"}
       </p>
+      {cobro.saldoPendiente > 0 ? (
+        <p className="mt-1">
+          <span className="rounded-full bg-marca-suave px-2 py-0.5 text-xs font-semibold text-marca-oscuro">
+            Debe {formatoMonto(cobro.saldoPendiente)} de un pago parcial
+          </span>
+        </p>
+      ) : null}
       <div className="mt-auto flex gap-2 pt-3">
         <a
           href={`https://wa.me/${wa}`}
@@ -82,6 +89,9 @@ export default async function PaginaCobros() {
   const vencidas = cobros.filter((c) => c.estado === "vencida");
   const porVencer = cobros.filter((c) => c.estado === "por_vencer");
   const alDia = cobros.filter((c) => c.estado === "al_dia");
+  const deudores = cobros.filter((c) => c.saldoPendiente > 0);
+  // Deudores con cuota vigente: sin esta franja no aparecerían en la pantalla.
+  const deudoresAlDia = alDia.filter((c) => c.saldoPendiente > 0);
 
   return (
     <div>
@@ -93,9 +103,24 @@ export default async function PaginaCobros() {
             <ChipBanner etiqueta="Al día">{alDia.length}</ChipBanner>
             <ChipBanner etiqueta="Por vencer">{porVencer.length}</ChipBanner>
             <ChipBanner etiqueta="Vencidas">{vencidas.length}</ChipBanner>
+            {deudores.length > 0 ? (
+              <ChipBanner etiqueta="Con deuda">{deudores.length}</ChipBanner>
+            ) : null}
           </>
         }
       />
+
+      {deudoresAlDia.length > 0 ? (
+        <section className="mt-6">
+          <h2 className="titulo-display text-2xl text-marca-oscuro">
+            Pagos parciales a completar ({deudoresAlDia.length})
+          </h2>
+          <p className="mt-1 text-xs text-tinta-suave">
+            Cuota vigente pero pagada en parte: falta que entreguen el resto.
+          </p>
+          <GrillaCobros cobros={deudoresAlDia} />
+        </section>
+      ) : null}
 
       <section className="mt-6">
         <h2 className="titulo-display text-2xl text-peligro">

@@ -1,7 +1,7 @@
 import "server-only";
 import { and, countDistinct, eq, gte, inArray, lte, sql, sum } from "drizzle-orm";
 import { db } from "@/db";
-import { alumnos, gastos, leads, pagos, suscripciones } from "@/db/schema";
+import { alumnos, gastos, leads, pagoEntregas, suscripciones } from "@/db/schema";
 import { autorizarSeccion, type UsuarioSesion } from "./auth/permissions";
 import { hoyISO, ultimosMeses } from "./fechas";
 import { tasaDeConversion, type EstadoLead } from "./reglas-leads";
@@ -27,15 +27,22 @@ export async function serieFinanciera(
   const meses = ultimosMeses(cantidadMeses);
   const desde = `${meses[0]}-01`;
 
-  const mesDePago = sql<string>`to_char(${pagos.fechaPago}, 'YYYY-MM')`;
+  // Ingresos = dinero REAL recibido (entregas), por fecha de entrega: un
+  // contrato pagado en cuotas suma en el mes en que entró cada plata.
+  const mesDeEntrega = sql<string>`to_char(${pagoEntregas.fecha}, 'YYYY-MM')`;
   const mesDeGasto = sql<string>`to_char(${gastos.fecha}, 'YYYY-MM')`;
 
   const [ingresosPorMes, gastosPorMes] = await Promise.all([
     db
-      .select({ mes: mesDePago, total: sum(pagos.monto) })
-      .from(pagos)
-      .where(and(inArray(pagos.sedeId, sedeIds), gte(pagos.fechaPago, desde)))
-      .groupBy(mesDePago),
+      .select({ mes: mesDeEntrega, total: sum(pagoEntregas.monto) })
+      .from(pagoEntregas)
+      .where(
+        and(
+          inArray(pagoEntregas.sedeId, sedeIds),
+          gte(pagoEntregas.fecha, desde),
+        ),
+      )
+      .groupBy(mesDeEntrega),
     db
       .select({ mes: mesDeGasto, total: sum(gastos.monto) })
       .from(gastos)

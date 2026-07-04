@@ -9,20 +9,22 @@ import { diasParaVencer, estadoCuota } from "@/lib/vencimientos";
 import { Campo, Input } from "@/componentes/campos";
 import { EstadoCuotaChip } from "@/componentes/estado-cuota";
 import { FormAccion } from "@/componentes/form-accion";
-import { darDeBajaSuscripcion } from "../acciones";
+import { darDeBajaSuscripcion, registrarEntrega } from "../acciones";
 
 export const metadata: Metadata = { title: "Ficha del alumno" };
+
+const ETIQUETA_MEDIO = { efectivo: "Efectivo", transferencia: "Transferencia" };
 
 export default async function PaginaFichaAlumno({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ pago?: string }>;
+  searchParams: Promise<{ pago?: string; saldo?: string }>;
 }) {
   const usuario = await requerirSeccion("operativa");
   const { id } = await params;
-  const { pago } = await searchParams;
+  const { pago, saldo: saldoParam } = await searchParams;
   const ficha = await fichaDeAlumno(usuario, Number(id));
   if (!ficha) notFound();
   const { alumno, suscripciones } = ficha;
@@ -43,6 +45,12 @@ export default async function PaginaFichaAlumno({
       {pago === "ok" ? (
         <p className="mb-4 rounded-xl bg-ok/10 px-4 py-3 text-sm font-medium text-ok">
           Pago registrado. Abajo ves hasta cuándo quedó habilitado.
+        </p>
+      ) : pago === "deudor" ? (
+        <p className="mb-4 rounded-xl bg-alerta/10 px-4 py-3 text-sm font-medium text-alerta">
+          Pago parcial registrado: queda debiendo{" "}
+          {saldoParam ? formatoMonto(saldoParam) : "el resto"}. Podés completar
+          la deuda desde el historial de pagos.
         </p>
       ) : null}
 
@@ -107,6 +115,10 @@ export default async function PaginaFichaAlumno({
             const pagosDeSub = historial.filter(
               (p) => p.suscripcionId === sub.id,
             );
+            const deudaDeSub = pagosDeSub.reduce(
+              (suma, p) => suma + p.saldoPendiente,
+              0,
+            );
             return (
               <li
                 key={sub.id}
@@ -114,17 +126,24 @@ export default async function PaginaFichaAlumno({
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="font-semibold">{sub.plan}</p>
-                  {sub.estado === "activa" ? (
-                    <EstadoCuotaChip
-                      estado={estadoCuota(vence, hoy, umbral)}
-                      vence={vence}
-                      diasRestantes={vence ? diasParaVencer(vence, hoy) : null}
-                    />
-                  ) : (
-                    <span className="rounded-full bg-borde px-2.5 py-1 text-xs font-medium text-tinta-suave">
-                      Dada de baja
-                    </span>
-                  )}
+                  <span className="flex flex-wrap items-center gap-1.5">
+                    {deudaDeSub > 0 ? (
+                      <span className="rounded-full bg-marca-suave px-2.5 py-1 text-xs font-semibold text-marca-oscuro">
+                        Debe {formatoMonto(deudaDeSub)}
+                      </span>
+                    ) : null}
+                    {sub.estado === "activa" ? (
+                      <EstadoCuotaChip
+                        estado={estadoCuota(vence, hoy, umbral)}
+                        vence={vence}
+                        diasRestantes={vence ? diasParaVencer(vence, hoy) : null}
+                      />
+                    ) : (
+                      <span className="rounded-full bg-borde px-2.5 py-1 text-xs font-medium text-tinta-suave">
+                        Dada de baja
+                      </span>
+                    )}
+                  </span>
                 </div>
                 <p className="mt-1 text-sm text-tinta-suave">
                   Alta el {formatoFecha(sub.fechaAlta)}
@@ -180,7 +199,7 @@ export default async function PaginaFichaAlumno({
                 ) : null}
 
                 {pagosDeSub.length > 0 ? (
-                  <details className="mt-3">
+                  <details className="mt-3" open={deudaDeSub > 0}>
                     <summary className="cursor-pointer text-sm font-medium text-tinta-suave">
                       Historial de pagos ({pagosDeSub.length})
                     </summary>
@@ -188,15 +207,69 @@ export default async function PaginaFichaAlumno({
                       {pagosDeSub.map((p) => (
                         <li
                           key={p.id}
-                          className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-fondo px-3 py-2 text-sm"
+                          className="rounded-lg bg-fondo px-3 py-2 text-sm"
                         >
-                          <span>{formatoFecha(p.fechaPago)}</span>
-                          <span className="font-medium">
-                            {formatoMonto(p.monto)}
-                            <span className="ml-2 text-xs text-tinta-suave">
-                              habilitó hasta el {formatoFecha(p.vence)}
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <span>
+                              Contrato del {formatoFecha(p.fechaPago)}
+                              {p.nota ? (
+                                <span
+                                  className="ml-1 text-xs text-tinta-suave"
+                                  title={p.nota}
+                                >
+                                  · corregido
+                                </span>
+                              ) : null}
                             </span>
-                          </span>
+                            <span className="font-medium">
+                              {formatoMonto(p.monto)}
+                              <span className="ml-2 text-xs text-tinta-suave">
+                                habilitó hasta el {formatoFecha(p.vence)}
+                              </span>
+                            </span>
+                          </div>
+                          {p.entregas.length > 0 ? (
+                            <ul className="mt-1.5 grid gap-0.5 border-l-2 border-borde pl-3 text-xs text-tinta-suave">
+                              {p.entregas.map((e) => (
+                                <li key={e.id}>
+                                  {formatoFecha(e.fecha)} ·{" "}
+                                  {ETIQUETA_MEDIO[e.medio]} ·{" "}
+                                  {formatoMonto(e.monto)}
+                                </li>
+                              ))}
+                            </ul>
+                          ) : null}
+                          {p.saldoPendiente > 0 ? (
+                            <details className="mt-2">
+                              <summary className="cursor-pointer text-xs font-semibold text-marca-oscuro">
+                                Completar deuda ({formatoMonto(p.saldoPendiente)})…
+                              </summary>
+                              <FormAccion
+                                accion={registrarEntrega}
+                                textoBoton="Registrar entrega"
+                                className="mt-2 max-w-sm"
+                              >
+                                <input type="hidden" name="pagoId" value={p.id} />
+                                <div className="grid grid-cols-2 gap-3">
+                                  <Campo etiqueta="Efectivo ($)">
+                                    <Input
+                                      name="efectivo"
+                                      inputMode="numeric"
+                                      placeholder="0"
+                                      defaultValue={p.saldoPendiente}
+                                    />
+                                  </Campo>
+                                  <Campo etiqueta="Transferencia ($)">
+                                    <Input
+                                      name="transferencia"
+                                      inputMode="numeric"
+                                      placeholder="0"
+                                    />
+                                  </Campo>
+                                </div>
+                              </FormAccion>
+                            </details>
+                          ) : null}
                         </li>
                       ))}
                     </ul>

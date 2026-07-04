@@ -246,6 +246,45 @@ async function asegurarPagoInicial(
   });
 }
 
+/**
+ * Contrato de HOY pagado en parte (una sola entrega en efectivo): deja al
+ * alumno como deudor para probar saldos, badges y "completar deuda".
+ * Solo si la suscripción tiene a lo sumo el pago inicial.
+ */
+async function asegurarPagoParcial(
+  sub: { id: number; sedeId: number },
+  acordado: number,
+  entregado: number,
+) {
+  const [{ cantidad }] = await db
+    .select({ cantidad: count() })
+    .from(pagos)
+    .where(eq(pagos.suscripcionId, sub.id));
+  if (cantidad >= 2) return;
+  const hoy = hoyISO();
+  const vigente = await db.query.pagos.findFirst({
+    where: eq(pagos.suscripcionId, sub.id),
+    orderBy: desc(pagos.vence),
+  });
+  const [pago] = await db
+    .insert(pagos)
+    .values({
+      sedeId: sub.sedeId,
+      suscripcionId: sub.id,
+      monto: acordado.toFixed(2),
+      fechaPago: hoy,
+      vence: calcularVencimiento(vigente?.vence ?? null, hoy),
+    })
+    .returning();
+  await db.insert(pagoEntregas).values({
+    pagoId: pago.id,
+    sedeId: sub.sedeId,
+    monto: entregado.toFixed(2),
+    medio: "efectivo",
+    fecha: hoy,
+  });
+}
+
 async function main() {
   // --- Sedes y usuarios (Fase 1) ------------------------------------------
   const aconquija = await asegurarSede({
@@ -523,6 +562,8 @@ async function main() {
     "2026-06-02",
   );
   await asegurarPagoInicial(subFlorencia, 28); // por vencer (vence en ~2 días)
+  // Renovó hoy pagando el 60 %: queda deudora del resto (pagos parciales).
+  await asegurarPagoParcial(subFlorencia, 40000, 24000);
 
   const marina = await asegurarAlumno({
     sedeId: yerbaBuena.id,
