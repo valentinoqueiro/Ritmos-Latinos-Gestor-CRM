@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requerirSeccion } from "@/lib/auth/guards";
-import { cobrosDeSede, type CobroDeSuscripcion } from "@/lib/cobros";
+import { cobrosDeSedes, type CobroDeSuscripcion } from "@/lib/cobros";
 import {
   cumpleanosDelMes,
   kpisAlumnos,
@@ -107,20 +107,22 @@ export default async function PaginaDashboard({
   const sedeIds = alcance.map((s) => s.id);
   const esOwner = usuario.rol === "owner";
 
-  const [serie, alumnosKpi, cumples, cobrosPorSede, ocupacionPorSede, crm] =
+  const [serie, alumnosKpi, cumples, cobrosTodos, ocupacionPorSede, crm] =
     await Promise.all([
       serieFinanciera(usuario, sedeIds),
       kpisAlumnos(usuario, sedeIds),
       cumpleanosDelMes(usuario, sedeIds),
-      Promise.all(alcance.map((s) => cobrosDeSede(usuario, s.id))),
+      cobrosDeSedes(usuario, sedeIds),
       Promise.all(alcance.map((s) => horariosConOcupacion(usuario, s.id))),
       kpisCrm(usuario),
     ]);
 
   const mesActual = serie[serie.length - 1];
-  const cobros = cobrosPorSede.flatMap((lista, i) =>
-    lista.map((c) => ({ ...c, sede: alcance[i].nombre })),
-  );
+  const nombrePorSede = new Map(alcance.map((s) => [s.id, s.nombre]));
+  const cobros = cobrosTodos.map((c) => ({
+    ...c,
+    sede: nombrePorSede.get(c.sedeId) ?? "",
+  }));
   const vencidas = cobros.filter((c) => c.estado === "vencida");
   // Moroso = vencida hasta 10 días; más de 10 días = dejó de venir (regla en
   // src/lib/vencimientos.ts). "Nunca pagó" cuenta como moroso, no abandono.
@@ -303,7 +305,7 @@ export default async function PaginaDashboard({
           <p className="mt-0.5 text-xs text-tinta-suave">
             Vencida hasta {DIAS_HASTA_ABANDONO} días (o sin pagos).
           </p>
-          <ListaCobros cobros={morosos} esOwner={esOwner} conSede={!sedeElegida} nombreSede={nombreSede} />
+          <ListaCobros cobros={morosos} esOwner={esOwner} conSede={!sedeElegida} />
         </div>
         <div className="tarjeta p-4">
           <h2 className="titulo-display text-2xl text-alerta">
@@ -312,7 +314,7 @@ export default async function PaginaDashboard({
           <p className="mt-0.5 text-xs text-tinta-suave">
             Se vencen en los próximos días.
           </p>
-          <ListaCobros cobros={porVencer} esOwner={esOwner} conSede={!sedeElegida} nombreSede={nombreSede} />
+          <ListaCobros cobros={porVencer} esOwner={esOwner} conSede={!sedeElegida} />
         </div>
         <div className="tarjeta p-4">
           <h2 className="titulo-display text-2xl">
@@ -321,7 +323,7 @@ export default async function PaginaDashboard({
           <p className="mt-0.5 text-xs text-tinta-suave">
             Más de {DIAS_HASTA_ABANDONO} días vencida: los damos por baja.
           </p>
-          <ListaCobros cobros={dejaron} esOwner={esOwner} conSede={!sedeElegida} nombreSede={nombreSede} />
+          <ListaCobros cobros={dejaron} esOwner={esOwner} conSede={!sedeElegida} />
         </div>
       </section>
 
@@ -402,12 +404,10 @@ function ListaCobros({
   cobros,
   esOwner,
   conSede,
-  nombreSede,
 }: {
   cobros: (CobroDeSuscripcion & { sede: string })[];
   esOwner: boolean;
   conSede: boolean;
-  nombreSede: (id: number) => string;
 }) {
   if (cobros.length === 0) {
     return <p className="mt-2 text-sm text-tinta-suave">Nadie en esta lista. 🎉</p>;

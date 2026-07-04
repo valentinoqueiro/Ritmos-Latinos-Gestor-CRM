@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { cookies } from "next/headers";
 import type { UsuarioSesion } from "./permissions";
 import { firmarToken, verificarToken } from "./token";
@@ -24,12 +25,18 @@ export async function crearSesion(usuario: UsuarioSesion): Promise<void> {
   });
 }
 
-export async function obtenerSesion(): Promise<UsuarioSesion | null> {
-  const jar = await cookies();
-  const token = jar.get(COOKIE_SESION)?.value;
-  if (!token) return null;
-  return verificarToken(token, secreto());
-}
+// cache(): una sola verificación de JWT por request aunque layout y página
+// pidan la sesión cada uno. Además devuelve SIEMPRE el mismo objeto usuario,
+// lo que permite que sedesVisibles/sedeActiva (también cacheadas por
+// argumento) deduplen sus consultas a la base.
+export const obtenerSesion = cache(
+  async (): Promise<UsuarioSesion | null> => {
+    const jar = await cookies();
+    const token = jar.get(COOKIE_SESION)?.value;
+    if (!token) return null;
+    return verificarToken(token, secreto());
+  },
+);
 
 export async function cerrarSesion(): Promise<void> {
   const jar = await cookies();

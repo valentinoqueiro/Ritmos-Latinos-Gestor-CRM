@@ -24,9 +24,11 @@ export function EncabezadoSeccion({
         height={194}
         className="pointer-events-none absolute -bottom-8 -right-4 w-40 rotate-6 opacity-15 select-none sm:w-52"
       />
+      {/* El título conserva su ancho natural (flex-auto): si el chip `extra`
+          no entra al lado, baja a su propia fila en vez de pisar el texto. */}
       <div className="relative flex flex-wrap items-center gap-x-6 gap-y-4">
-        <div className="min-w-0 flex-1">
-          <h1 className="titulo-display text-4xl leading-none sm:text-5xl">
+        <div className="min-w-0 flex-auto">
+          <h1 className="titulo-display break-words text-4xl leading-none sm:text-5xl">
             {titulo}
           </h1>
           {subtitulo ? (

@@ -56,23 +56,25 @@ export default async function PaginaAlumnos({
   searchParams: Promise<{ q?: string; disciplina?: string }>;
 }) {
   const usuario = await requerirSeccion("operativa");
-  const sede = await sedeActiva(usuario);
-  const { q = "", disciplina: disciplinaParam } = await searchParams;
+  const [sede, { q = "", disciplina: disciplinaParam }] = await Promise.all([
+    sedeActiva(usuario),
+    searchParams,
+  ]);
   const termino = q.trim();
+  const idDisciplina = Number(disciplinaParam);
 
-  const disciplinas = sede
-    ? await disciplinasConInscriptos(usuario, sede.id)
-    : [];
-  const disciplinaElegida = disciplinas.find(
-    (d) => d.id === Number(disciplinaParam),
-  );
-
-  const resultados =
-    sede && termino ? await buscarAlumnos(usuario, sede.id, termino) : [];
-  const alumnosDisciplina =
-    sede && !termino && disciplinaElegida
-      ? await alumnosDeDisciplina(usuario, sede.id, disciplinaElegida.id)
-      : [];
+  // Las tres consultas van en paralelo; la de alumnos por disciplina se
+  // dispara con el id del parámetro y solo se muestra si la disciplina
+  // realmente pertenece a la sede (disciplinaElegida).
+  const [disciplinas, resultados, alumnosPorDisciplina] = await Promise.all([
+    sede ? disciplinasConInscriptos(usuario, sede.id) : [],
+    sede && termino ? buscarAlumnos(usuario, sede.id, termino) : [],
+    sede && !termino && Number.isInteger(idDisciplina)
+      ? alumnosDeDisciplina(usuario, sede.id, idDisciplina)
+      : [],
+  ]);
+  const disciplinaElegida = disciplinas.find((d) => d.id === idDisciplina);
+  const alumnosDisciplina = disciplinaElegida ? alumnosPorDisciplina : [];
 
   return (
     <div>

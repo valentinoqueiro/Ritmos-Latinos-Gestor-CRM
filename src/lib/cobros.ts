@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { and, asc, desc, eq, inArray, max } from "drizzle-orm";
 import { db } from "@/db";
 import {
@@ -23,7 +24,9 @@ import {
 
 export const CLAVE_UMBRAL = "umbral_por_vencer_dias";
 
-export async function umbralPorVencer(): Promise<number> {
+// cache(): varias consultas del mismo request (ficha, cobros por sede, KPIs)
+// necesitan el umbral; con esto la config se lee una sola vez por request.
+export const umbralPorVencer = cache(async (): Promise<number> => {
   const fila = await db.query.configuracion.findFirst({
     where: eq(configuracion.clave, CLAVE_UMBRAL),
   });
@@ -31,10 +34,11 @@ export async function umbralPorVencer(): Promise<number> {
   return Number.isInteger(valor) && valor >= 0
     ? valor
     : UMBRAL_POR_VENCER_DEFAULT;
-}
+});
 
 export type CobroDeSuscripcion = {
   suscripcionId: number;
+  sedeId: number;
   alumnoId: number;
   alumno: string;
   telefono: string;
@@ -58,6 +62,18 @@ export async function cobrosDeSede(
 }
 
 /**
+ * Cobros de varias sedes en UNA sola consulta (dashboard consolidado):
+ * antes se consultaba sede por sede y los tiempos se sumaban.
+ */
+export async function cobrosDeSedes(
+  usuario: UsuarioSesion,
+  sedeIds: number[],
+): Promise<CobroDeSuscripcion[]> {
+  for (const sedeId of sedeIds) autorizarSede(usuario, sedeId);
+  return cobrosPorSedes(sedeIds);
+}
+
+/**
  * Misma consulta que `cobrosDeSede`, sin autorización de usuario interno:
  * la reutiliza la API pública v1 (src/lib/api-publica.ts), que autoriza por
  * alcance de API key en vez de rol+sede.
@@ -72,6 +88,7 @@ export async function cobrosPorSedes(
   const filas = await db
     .select({
       suscripcionId: suscripciones.id,
+      sedeId: suscripciones.sedeId,
       alumnoId: alumnos.id,
       nombre: alumnos.nombre,
       apellido: alumnos.apellido,
@@ -92,6 +109,7 @@ export async function cobrosPorSedes(
     )
     .groupBy(
       suscripciones.id,
+      suscripciones.sedeId,
       alumnos.id,
       alumnos.nombre,
       alumnos.apellido,
@@ -115,6 +133,7 @@ export async function cobrosPorSedes(
 
   return filas.map((f) => ({
     suscripcionId: f.suscripcionId,
+    sedeId: f.sedeId,
     alumnoId: f.alumnoId,
     alumno: `${f.apellido}, ${f.nombre}`,
     telefono: f.telefono,
