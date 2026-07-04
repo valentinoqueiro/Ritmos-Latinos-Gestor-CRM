@@ -2,9 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { requerirSeccion } from "@/lib/auth/guards";
 import { detalleDeTurno, turnoAbierto } from "@/lib/caja";
-import { cobrosDeSede, type CobroDeSuscripcion } from "@/lib/cobros";
-import { formatoMonto } from "@/lib/operativa";
-import { ZONA_HORARIA } from "@/lib/fechas";
+import {
+  cobrosDeSede,
+  deudoresDeHoy,
+  type CobroDeSuscripcion,
+  type DeudorDeHoy,
+} from "@/lib/cobros";
+import { linkWhatsApp } from "@/lib/mensajes";
+import { formatoHora, formatoMonto } from "@/lib/operativa";
+import { formatoFecha, ZONA_HORARIA } from "@/lib/fechas";
 import { sedeActiva } from "@/lib/sedes";
 import { ChipBanner, EncabezadoSeccion } from "@/componentes/encabezado";
 
@@ -55,11 +61,19 @@ function ListaCorta({ cobros }: { cobros: CobroDeSuscripcion[] }) {
 export default async function PaginaInicio() {
   const usuario = await requerirSeccion("operativa");
   const sede = await sedeActiva(usuario);
-  const [cobros, turno] = await Promise.all([
+  const [cobros, turno, deudoresHoy] = await Promise.all([
     sede ? cobrosDeSede(usuario, sede.id) : [],
     sede ? turnoAbierto(sede.id) : null,
+    sede ? deudoresDeHoy(usuario, sede.id) : [],
   ]);
   const turnoDetalle = turno ? await detalleDeTurno(usuario, turno.id) : null;
+  const deudoresPorDisciplina = new Map<string, DeudorDeHoy[]>();
+  for (const d of deudoresHoy) {
+    deudoresPorDisciplina.set(d.disciplina, [
+      ...(deudoresPorDisciplina.get(d.disciplina) ?? []),
+      d,
+    ]);
+  }
   const vencidas = cobros.filter(
     (c) =>
       c.estado === "vencida" &&
@@ -183,6 +197,69 @@ export default async function PaginaInicio() {
           )}
         </article>
       </div>
+
+      {/* Deudores con clase hoy: para encararlos cuando llegan al mostrador */}
+      <section className="mt-6 tarjeta p-5">
+        <h2 className="text-sm font-semibold text-tinta-suave">
+          Deudores que vienen hoy
+        </h2>
+        {deudoresHoy.length === 0 ? (
+          <p className="mt-2 text-sm text-tinta-suave">
+            Nadie con deuda tiene clase hoy. 🎉
+          </p>
+        ) : (
+          <div className="mt-3 grid gap-4 sm:grid-cols-2">
+            {[...deudoresPorDisciplina.entries()].map(([disciplina, lista]) => (
+              <div key={disciplina}>
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-tinta-suave">
+                  {disciplina}
+                </h3>
+                <ul className="mt-1.5 grid gap-1.5">
+                  {lista.map((d) => (
+                    <li
+                      key={`${d.alumnoId}-${d.hora}`}
+                      className="flex items-center justify-between gap-2 rounded-lg bg-fondo px-3 py-2 text-sm"
+                    >
+                      <span className="min-w-0">
+                        <Link
+                          href={`/alumnos/${d.alumnoId}`}
+                          className="font-medium hover:underline"
+                        >
+                          {d.alumno}
+                        </Link>
+                        <span className="ml-1.5 text-xs text-tinta-suave">
+                          {formatoHora(d.hora)} hs
+                        </span>
+                        <span
+                          className={`ml-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                            d.motivo === "vencida"
+                              ? "bg-marca-suave text-marca-oscuro"
+                              : "bg-alerta/10 text-alerta"
+                          }`}
+                        >
+                          {d.motivo === "vencida"
+                            ? d.vence
+                              ? `venció el ${formatoFecha(d.vence)}`
+                              : "nunca pagó"
+                            : `debe ${formatoMonto(d.saldoPendiente)}`}
+                        </span>
+                      </span>
+                      <a
+                        href={linkWhatsApp(d.telefono)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="shrink-0 rounded-full bg-ok/10 px-2.5 py-1 text-xs font-semibold text-ok transition hover:bg-ok/20"
+                      >
+                        WhatsApp
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
       <h2 className="mt-8 text-sm font-semibold text-tinta-suave">
         Accesos rápidos

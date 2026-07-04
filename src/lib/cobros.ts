@@ -5,17 +5,21 @@ import { db } from "@/db";
 import {
   alumnos,
   configuracion,
+  disciplinas,
+  horarios,
   pagoEntregas,
   pagos,
   planes,
   preciosPlan,
   suscripciones,
+  suscripcionesHorarios,
 } from "@/db/schema";
 import { autorizarSede, type UsuarioSesion } from "./auth/permissions";
 import { saldoPendiente, totalEntregado } from "./deuda";
-import { hoyISO } from "./fechas";
+import { diaSemanaISO, hoyISO } from "./fechas";
 import {
   diasParaVencer,
+  esAbandono,
   estadoCuota,
   UMBRAL_POR_VENCER_DEFAULT,
   type EstadoCuota,
@@ -178,6 +182,83 @@ export async function cobrosPorSedes(
       entregadoPorSub.get(f.suscripcionId) ?? 0,
     ),
   }));
+}
+
+export type DeudorDeHoy = {
+  alumnoId: number;
+  alumno: string;
+  telefono: string;
+  disciplina: string;
+  hora: string;
+  // "vencida" = debe la cuota; "saldo" = cuota vigente con pago parcial.
+  motivo: "vencida" | "saldo";
+  saldoPendiente: number;
+  vence: string | null;
+};
+
+/**
+ * Alumnos con deuda (cuota vencida reciente o saldo de pago parcial) que
+ * tienen clase HOY en la sede, para encararlos cuando llegan al mostrador.
+ * Los abandonos (más de 10 días vencidos) no aparecen: ya no vienen.
+ */
+export async function deudoresDeHoy(
+  usuario: UsuarioSesion,
+  sedeId: number,
+): Promise<DeudorDeHoy[]> {
+  const cobros = await cobrosDeSede(usuario, sedeId);
+  const conDeuda = cobros.filter(
+    (c) =>
+      (c.estado === "vencida" && !esAbandono(c.diasRestantes)) ||
+      c.saldoPendiente > 0,
+  );
+  if (conDeuda.length === 0) return [];
+
+  const dia = diaSemanaISO(hoyISO());
+  const clasesDeHoy = await db
+    .select({
+      suscripcionId: suscripcionesHorarios.suscripcionId,
+      hora: horarios.hora,
+      disciplina: disciplinas.nombre,
+    })
+    .from(suscripcionesHorarios)
+    .innerJoin(horarios, eq(suscripcionesHorarios.horarioId, horarios.id))
+    .innerJoin(disciplinas, eq(horarios.disciplinaId, disciplinas.id))
+    .where(
+      and(
+        inArray(
+          suscripcionesHorarios.suscripcionId,
+          conDeuda.map((c) => c.suscripcionId),
+        ),
+        eq(horarios.diaSemana, dia),
+        eq(horarios.activo, true),
+      ),
+    )
+    .orderBy(asc(horarios.hora));
+
+  const cobroDe = new Map(conDeuda.map((c) => [c.suscripcionId, c]));
+  const vistos = new Set<string>();
+  const deudores: DeudorDeHoy[] = [];
+  for (const clase of clasesDeHoy) {
+    const c = cobroDe.get(clase.suscripcionId);
+    if (!c) continue;
+    const clave = `${c.alumnoId}·${clase.disciplina}`;
+    if (vistos.has(clave)) continue;
+    vistos.add(clave);
+    deudores.push({
+      alumnoId: c.alumnoId,
+      alumno: c.alumno,
+      telefono: c.telefono,
+      disciplina: clase.disciplina,
+      hora: clase.hora,
+      motivo: c.estado === "vencida" ? "vencida" : "saldo",
+      saldoPendiente: c.saldoPendiente,
+      vence: c.vence,
+    });
+  }
+  return deudores.sort(
+    (a, b) =>
+      a.disciplina.localeCompare(b.disciplina) || a.hora.localeCompare(b.hora),
+  );
 }
 
 /** Última fecha de vencimiento habilitada de una suscripción (o null). */
