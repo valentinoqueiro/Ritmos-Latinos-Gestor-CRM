@@ -5,6 +5,7 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import {
+  apiKeys,
   configuracion,
   disciplinas,
   horarios,
@@ -12,6 +13,7 @@ import {
   planesDisciplinas,
   preciosPlan,
 } from "@/db/schema";
+import { esAlcanceValido, generarClave } from "@/lib/auth/api-keys";
 import { exigirSeccion } from "@/lib/auth/guards";
 import { autorizarSede, ErrorAutorizacion } from "@/lib/auth/permissions";
 import { CLAVE_UMBRAL } from "@/lib/cobros";
@@ -313,4 +315,54 @@ export async function alternarPlan(formData: FormData): Promise<void> {
   autorizarSede(usuario, plan.sedeId);
   await db.update(planes).set({ activo: !plan.activo }).where(eq(planes.id, id));
   revalidatePath("/configuracion");
+}
+
+// --- API keys (Fase 7 — API pública v1) --------------------------------------
+
+export type EstadoCrearApiKey = EstadoAccion & { clave?: string };
+
+const esquemaApiKey = z.object({
+  nombre: z.string().trim().min(2, "Poné un nombre descriptivo (ej.: n8n cumpleaños)"),
+  alcances: z
+    .array(z.string())
+    .min(1, "Elegí al menos un alcance")
+    .refine((lista) => lista.every(esAlcanceValido), {
+      message: "Alcance inválido",
+    }),
+});
+
+/**
+ * Crea una API key nueva. La clave completa solo viaja en el `return` de esta
+ * acción (mostrada una única vez en la UI): en la base solo queda su hash.
+ */
+export async function crearApiKey(
+  _estado: EstadoCrearApiKey,
+  formData: FormData,
+): Promise<EstadoCrearApiKey> {
+  try {
+    const usuario = await exigirSeccion("configuracion");
+    const datos = esquemaApiKey.parse({
+      nombre: formData.get("nombre"),
+      alcances: formData.getAll("alcances"),
+    });
+    const { clave, hash, ultimosCaracteres } = generarClave();
+    await db.insert(apiKeys).values({
+      nombre: datos.nombre,
+      hash,
+      ultimosCaracteres,
+      alcances: datos.alcances,
+      creadaPorId: usuario.id,
+    });
+    revalidatePath("/configuracion/api-keys");
+    return { ok: true, clave };
+  } catch (error) {
+    return mensajeDeError(error);
+  }
+}
+
+export async function revocarApiKey(formData: FormData): Promise<void> {
+  await exigirSeccion("configuracion");
+  const id = z.coerce.number().int().positive().parse(formData.get("id"));
+  await db.update(apiKeys).set({ activa: false }).where(eq(apiKeys.id, id));
+  revalidatePath("/configuracion/api-keys");
 }

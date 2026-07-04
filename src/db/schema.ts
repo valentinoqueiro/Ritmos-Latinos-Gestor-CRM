@@ -336,6 +336,36 @@ export const leads = pgTable("leads", {
 
 export type Lead = typeof leads.$inferSelect;
 
+// ---------------------------------------------------------------------------
+// API pública v1 (Fase 7) — API keys para integraciones externas
+// ---------------------------------------------------------------------------
+
+// Alcances posibles de una API key (ver src/lib/auth/api-keys.ts). Se guardan
+// como array de texto: agregar un alcance nuevo no requiere migración de enum.
+export const apiKeys = pgTable(
+  "api_keys",
+  {
+    id: serial("id").primaryKey(),
+    nombre: text("nombre").notNull(),
+    // Hash SHA-256 (hex) de la clave completa. Nunca se guarda la clave en
+    // claro: se muestra una sola vez al crearla (ver acciones.ts).
+    hash: text("hash").notNull(),
+    // Últimos 4 caracteres en claro, solo para que el admin la reconozca en
+    // la UI sin poder reconstruir la clave completa.
+    ultimosCaracteres: text("ultimos_caracteres").notNull(),
+    alcances: text("alcances").array().notNull(),
+    activa: boolean("activa").notNull().default(true),
+    ultimoUso: timestamp("ultimo_uso", { withTimezone: true }),
+    creadaPorId: integer("creada_por_id").references(() => usuarios.id),
+    creadaEn: timestamp("creada_en", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (tabla) => [uniqueIndex("api_keys_hash_unico").on(tabla.hash)],
+);
+
+export type ApiKey = typeof apiKeys.$inferSelect;
+
 export type Sede = typeof sedes.$inferSelect;
 export type Usuario = typeof usuarios.$inferSelect;
 export type Disciplina = typeof disciplinas.$inferSelect;

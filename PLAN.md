@@ -22,7 +22,7 @@
 | 4 | Gastos | ✅ Terminada (verificada en local) | 2026-07-03 |
 | 5 | Dashboard de KPIs | ✅ Terminada (verificada en local; KPIs de CRM se suman en la Fase 6) | 2026-07-03 |
 | 6 | CRM de leads | ✅ Terminada (verificada en local) | 2026-07-03 |
-| 7 | API pública v1 | ⬜ Pendiente | — |
+| 7 | API pública v1 | ✅ Terminada (verificada en local con llamadas curl reales) | 2026-07-04 |
 | 8 | Endurecimiento y publicación | ⬜ Pendiente | — |
 
 Estados posibles: ⬜ Pendiente · 🟡 En curso · ✅ Terminada (con fecha).

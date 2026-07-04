@@ -150,9 +150,23 @@ export async function cumpleanosDelMes(
   sedeIds: number[],
 ): Promise<Cumpleanero[]> {
   autorizarSeccion(usuario, "dashboard");
+  return cumpleanosEnMes(sedeIds);
+}
+
+/**
+ * Misma consulta, sin autorización de usuario interno: la reutiliza la API
+ * pública v1 (src/lib/api-publica.ts). `soloRestantes` filtra los que ya
+ * pasaron en lo que va del mes (para "próximos cumpleaños").
+ */
+export async function cumpleanosEnMes(
+  sedeIds: number[],
+  opciones: { soloRestantes?: boolean } = {},
+): Promise<Cumpleanero[]> {
+  if (sedeIds.length === 0) return [];
   const hoy = hoyISO();
   const mesActual = Number(hoy.slice(5, 7));
   const anioActual = Number(hoy.slice(0, 4));
+  const diaHoy = Number(hoy.slice(8, 10));
 
   const filas = await db
     .selectDistinct({
@@ -173,7 +187,7 @@ export async function cumpleanosDelMes(
       ),
     );
 
-  return filas
+  const cumpleaneros = filas
     .map((f) => ({
       alumnoId: f.alumnoId,
       nombre: `${f.nombre} ${f.apellido}`,
@@ -183,4 +197,8 @@ export async function cumpleanosDelMes(
       sedeId: f.sedeId,
     }))
     .sort((a, b) => a.dia - b.dia);
+
+  return opciones.soloRestantes
+    ? cumpleaneros.filter((c) => c.dia >= diaHoy)
+    : cumpleaneros;
 }

@@ -54,6 +54,15 @@ export default async function PaginaConfiguracion() {
             Planes por disciplina, pack o frecuencia, con historial de precios.
           </p>
         </Link>
+        <Link
+          href="/configuracion/api-keys"
+          className="rounded-2xl border border-borde bg-superficie p-4 transition hover:border-marca"
+        >
+          <p className="font-semibold">API keys</p>
+          <p className="mt-1 text-sm text-tinta-suave">
+            Integraciones externas: leads, vencimientos y cumpleaños vía API.
+          </p>
+        </Link>
       </div>
 
       <section className="mt-8 max-w-md rounded-2xl border border-borde bg-superficie p-4">

@@ -54,6 +54,18 @@ export async function cobrosDeSede(
   sedeId: number,
 ): Promise<CobroDeSuscripcion[]> {
   autorizarSede(usuario, sedeId);
+  return cobrosPorSedes([sedeId]);
+}
+
+/**
+ * Misma consulta que `cobrosDeSede`, sin autorización de usuario interno:
+ * la reutiliza la API pública v1 (src/lib/api-publica.ts), que autoriza por
+ * alcance de API key en vez de rol+sede.
+ */
+export async function cobrosPorSedes(
+  sedeIds: number[],
+): Promise<CobroDeSuscripcion[]> {
+  if (sedeIds.length === 0) return [];
   const hoy = hoyISO();
   const umbral = await umbralPorVencer();
 
@@ -73,7 +85,10 @@ export async function cobrosDeSede(
     .innerJoin(planes, eq(suscripciones.planId, planes.id))
     .leftJoin(pagos, eq(pagos.suscripcionId, suscripciones.id))
     .where(
-      and(eq(suscripciones.sedeId, sedeId), eq(suscripciones.estado, "activa")),
+      and(
+        inArray(suscripciones.sedeId, sedeIds),
+        eq(suscripciones.estado, "activa"),
+      ),
     )
     .groupBy(
       suscripciones.id,

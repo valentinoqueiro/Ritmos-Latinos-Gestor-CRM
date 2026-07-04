@@ -2,6 +2,18 @@
 
 > Registro de cambios del sistema de gestión. Cada sesión de trabajo agrega su entrada al cierre: fecha, fase, qué se hizo, decisiones tomadas y pendientes que quedaron.
 
+## 2026-07-04 — Fase 7: API pública v1
+
+**Hecho:**
+- Gestión de API keys en Configuración (solo admin, nueva pantalla `/configuracion/api-keys`): crear con nombre y alcances, ver últimos 4 caracteres, fecha de creación y último uso, revocar. La clave completa (`rlk_live_...`) se muestra una sola vez al crearla; en la base solo se guarda su hash SHA-256 (no bcrypt: una API key es un secreto de alta entropía, no una contraseña, y necesitábamos poder buscarla por igualdad indexada).
+- API pública versionada bajo `/api/v1`, autenticación por API key (`Authorization: Bearer ...`) con alcances (`leads:write`, `alumnos:read`, `vencimientos:read`, `cumpleanos:read`). Rechazos: 401 sin key o con key inválida/revocada (mismo mensaje para no filtrar cuál de las dos), 403 sin alcance, 429 si se supera el límite de 60 solicitudes/minuto por key (contador en memoria, documentado en el código).
+- Ingesta de leads (`POST /api/v1/leads`): entran como "nuevo" con origen `api` y fuente identificada obligatoria; misma validación que el alta manual del CRM.
+- Consultas de lectura cross-sede (con filtro opcional `sedeId`): alumnos con estado derivado (`GET /api/v1/alumnos`), vencimientos por vencer/vencidos con contacto reutilizando la MISMA lógica de `cobros.ts` que usa la secretaria (`GET /api/v1/vencimientos`), y próximos cumpleaños del mes con contacto reutilizando `kpis.ts` (`GET /api/v1/cumpleanos`).
+- Documentación completa para integradores en `docs/API_PUBLICA.md` (autenticación, alcances, cada endpoint con ejemplos de request/response y curl).
+- Tests nuevos (generación/hash de claves, validación de alcances, límite de solicitudes) — 62 tests en verde. Verificado con curl real contra el servidor local: key de lectura trae cumpleaños con teléfono; esa misma key falla con 403 al intentar crear un lead; sin key y con key inventada fallan con 401; una key de escritura crea un lead verificado en la base como "nuevo" con su fuente; una key revocada vuelve a fallar con 401 (mismo mensaje que una inexistente).
+
+**Pendiente:** nada propio de la fase. Sigue pendiente el deploy inicial (Fase 1, lo hace el humano con el README).
+
 ## 2026-07-03 — Fase 6: CRM de leads
 
 **Hecho:**

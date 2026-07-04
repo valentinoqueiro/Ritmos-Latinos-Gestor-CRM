@@ -1,6 +1,6 @@
 # Ritmos Latinos OS — Gestor de Alumnos + CRM
 
-Sistema de gestión interno de la academia **Ritmos Latinos** (Tucumán, Argentina): alumnos, suscripciones, cobros, gastos, KPIs y CRM, multi-sede. El plan completo de desarrollo está en [`PLAN.md`](./PLAN.md) y el historial en [`CHANGELOG.md`](./CHANGELOG.md).
+Sistema de gestión interno de la academia **Ritmos Latinos** (Tucumán, Argentina): alumnos, suscripciones, cobros, gastos, KPIs y CRM, multi-sede. El plan completo de desarrollo está en [`PLAN.md`](./PLAN.md) y el historial en [`CHANGELOG.md`](./CHANGELOG.md). Para integrar sistemas externos (n8n, agentes, formularios) con la API pública, ver [`docs/API_PUBLICA.md`](./docs/API_PUBLICA.md).
 
 - **Stack**: Next.js (App Router) full-stack · Postgres (Neon en producción) · Vercel (plan gratuito).
 - **Idioma/región**: español (Argentina) · zona horaria America/Argentina/Buenos_Aires · moneda ARS.
