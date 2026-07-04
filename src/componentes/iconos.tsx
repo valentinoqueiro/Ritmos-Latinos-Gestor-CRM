@@ -127,6 +127,26 @@ export function IconoCobros(p: Props) {
   );
 }
 
+export function IconoCaja(p: Props) {
+  return (
+    <Svg {...p}>
+      <path d="M3 8.5 12 4l9 4.5" />
+      <rect x="4.5" y="8.5" width="15" height="11" rx="1.5" />
+      <path d="M4.5 12.5h15M10 15.5h4" />
+    </Svg>
+  );
+}
+
+export function IconoInteresados(p: Props) {
+  return (
+    <Svg {...p}>
+      <circle cx="10" cy="8" r="3.2" />
+      <path d="M3.8 20c.7-3.2 3.2-5 6.2-5 1.4 0 2.7.4 3.7 1.1" />
+      <path d="M16 14.5v6M13 17.5h6" />
+    </Svg>
+  );
+}
+
 export function IconoNavPorNombre({
   nombre,
   className,
@@ -138,6 +158,10 @@ export function IconoNavPorNombre({
       return <IconoAlumnos className={className} />;
     case "cobros":
       return <IconoCobros className={className} />;
+    case "caja":
+      return <IconoCaja className={className} />;
+    case "interesados":
+      return <IconoInteresados className={className} />;
     case "horarios":
       return <IconoHorarios className={className} />;
     case "dashboard":

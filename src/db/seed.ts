@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { and, count, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq, isNull } from "drizzle-orm";
 import { db } from "./index";
 import {
   alumnos,
@@ -16,7 +16,15 @@ import {
 import { hashearPassword } from "../lib/auth/password";
 import { calcularVencimiento } from "../lib/vencimientos";
 import { hoyISO } from "../lib/fechas";
-import { categoriasGasto, gastos, leads, pagoEntregas, pagos } from "./schema";
+import {
+  categoriasGasto,
+  gastos,
+  leads,
+  movimientosCaja,
+  pagoEntregas,
+  pagos,
+  turnosCaja,
+} from "./schema";
 
 // Datos semilla: sedes y usuarios (Fase 1) + disciplinas, horarios, planes y
 // alumnos ficticios (Fase 2). Idempotente: busca por claves naturales antes de
@@ -285,6 +293,84 @@ async function asegurarPagoParcial(
   });
 }
 
+/**
+ * Turno de caja abierto HOY en la sede (si no hay ninguno abierto), con un
+ * egreso de ejemplo. Devuelve el turno para vincular entregas.
+ */
+async function asegurarTurnoAbierto(sedeId: number, abiertoPorId: number) {
+  const abierto = await db.query.turnosCaja.findFirst({
+    where: and(eq(turnosCaja.sedeId, sedeId), isNull(turnosCaja.cerradoEn)),
+  });
+  if (abierto) return abierto;
+  const [turno] = await db
+    .insert(turnosCaja)
+    .values({
+      sedeId,
+      abiertoPorId,
+      efectivoInicial: "20000.00",
+    })
+    .returning();
+  await db.insert(movimientosCaja).values({
+    turnoId: turno.id,
+    monto: "3500.00",
+    concepto: "Agua y descartables",
+    registradoPorId: abiertoPorId,
+  });
+  return turno;
+}
+
+/**
+ * Renovación de HOY cobrada mixta (efectivo + transferencia) dentro del
+ * turno: alimenta el resumen de caja. Solo si la suscripción tiene un pago.
+ */
+async function asegurarPagoMixtoEnTurno(
+  sub: { id: number; sedeId: number },
+  turnoId: number,
+  registradoPorId: number,
+) {
+  const [{ cantidad }] = await db
+    .select({ cantidad: count() })
+    .from(pagos)
+    .where(eq(pagos.suscripcionId, sub.id));
+  if (cantidad >= 2) return;
+  const hoy = hoyISO();
+  const vigente = await db.query.pagos.findFirst({
+    where: eq(pagos.suscripcionId, sub.id),
+    orderBy: desc(pagos.vence),
+  });
+  const [pago] = await db
+    .insert(pagos)
+    .values({
+      sedeId: sub.sedeId,
+      suscripcionId: sub.id,
+      monto: "28000.00",
+      fechaPago: hoy,
+      vence: calcularVencimiento(vigente?.vence ?? null, hoy),
+      registradoPorId,
+    })
+    .returning();
+  await db.insert(pagoEntregas).values([
+    {
+      pagoId: pago.id,
+      sedeId: sub.sedeId,
+      monto: "18000.00",
+      medio: "efectivo",
+      fecha: hoy,
+      turnoId,
+      registradoPorId,
+    },
+    {
+      pagoId: pago.id,
+      sedeId: sub.sedeId,
+      monto: "10000.00",
+      medio: "transferencia",
+      fecha: hoy,
+      turnoId,
+      registradoPorId,
+    },
+  ]);
+}
+
 async function main() {
   // --- Sedes y usuarios (Fase 1) ------------------------------------------
   const aconquija = await asegurarSede({
@@ -298,7 +384,7 @@ async function main() {
     telefono: "5493815838208",
   });
 
-  await asegurarUsuario({
+  const secAconquija = await asegurarUsuario({
     nombre: "Secretaría Aconquija",
     email: "secretaria.aconquija@ritmoslatinos.test",
     rol: "secretaria",
@@ -503,7 +589,14 @@ async function main() {
     horariosZumba.map((h) => h.id),
     "2026-06-10",
   );
-  await asegurarPagoInicial(subLucia, 5); // al día
+  await asegurarPagoInicial(subLucia, 35); // renovó hoy en el turno (abajo)
+
+  // --- Caja (Fase 8): turno abierto hoy con un egreso y un pago mixto ------
+  const turnoAconquija = await asegurarTurnoAbierto(
+    aconquija.id,
+    secAconquija.id,
+  );
+  await asegurarPagoMixtoEnTurno(subLucia, turnoAconquija.id, secAconquija.id);
 
   const valentina = await asegurarAlumno({
     sedeId: aconquija.id,

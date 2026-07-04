@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requerirSeccion } from "@/lib/auth/guards";
+import { detalleDeTurno, turnoAbierto } from "@/lib/caja";
 import { cobrosDeSede, type CobroDeSuscripcion } from "@/lib/cobros";
 import { formatoMonto } from "@/lib/operativa";
 import { ZONA_HORARIA } from "@/lib/fechas";
@@ -54,7 +55,11 @@ function ListaCorta({ cobros }: { cobros: CobroDeSuscripcion[] }) {
 export default async function PaginaInicio() {
   const usuario = await requerirSeccion("operativa");
   const sede = await sedeActiva(usuario);
-  const cobros = sede ? await cobrosDeSede(usuario, sede.id) : [];
+  const [cobros, turno] = await Promise.all([
+    sede ? cobrosDeSede(usuario, sede.id) : [],
+    sede ? turnoAbierto(sede.id) : null,
+  ]);
+  const turnoDetalle = turno ? await detalleDeTurno(usuario, turno.id) : null;
   const vencidas = cobros.filter(
     (c) =>
       c.estado === "vencida" &&
@@ -83,7 +88,60 @@ export default async function PaginaInicio() {
         }
       />
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-2">
+      {/* Estado de la caja del turno */}
+      {sede ? (
+        <article
+          className={`mt-6 tarjeta flex flex-wrap items-center justify-between gap-3 border-t-4 p-5 ${
+            turnoDetalle ? "border-t-ok" : "border-t-alerta"
+          }`}
+        >
+          {turnoDetalle ? (
+            <>
+              <div>
+                <h2 className="text-sm font-semibold text-tinta-suave">
+                  Caja · turno abierto
+                </h2>
+                <p className="mt-1 text-sm">
+                  {turnoDetalle.resumen.nuevos + turnoDetalle.resumen.renovados}{" "}
+                  pagos en el turno · Efectivo{" "}
+                  <strong>
+                    {formatoMonto(turnoDetalle.resumen.totalEfectivo)}
+                  </strong>{" "}
+                  · Transferencia{" "}
+                  <strong>
+                    {formatoMonto(turnoDetalle.resumen.totalTransferencia)}
+                  </strong>
+                </p>
+                <p className="mt-0.5 text-xs text-tinta-suave">
+                  Debería haber{" "}
+                  {formatoMonto(turnoDetalle.resumen.efectivoEsperado)} en la
+                  caja física.
+                </p>
+              </div>
+              <Link href="/caja" className="boton-secundario shrink-0">
+                Ver caja
+              </Link>
+            </>
+          ) : (
+            <>
+              <div>
+                <h2 className="text-sm font-semibold text-tinta-suave">
+                  Caja · sin turno abierto
+                </h2>
+                <p className="mt-1 text-sm text-tinta-suave">
+                  Abrí el turno para que los cobros del día queden en tu
+                  cierre.
+                </p>
+              </div>
+              <Link href="/caja" className="boton-primario shrink-0">
+                Abrir turno
+              </Link>
+            </>
+          )}
+        </article>
+      ) : null}
+
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <article className="tarjeta p-5">
           <div className="flex items-baseline justify-between gap-2">
             <h2 className="text-sm font-semibold text-tinta-suave">

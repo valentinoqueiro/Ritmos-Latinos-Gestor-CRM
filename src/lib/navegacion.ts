@@ -11,7 +11,9 @@ export type IconoNav =
   | "inicio"
   | "alumnos"
   | "cobros"
+  | "caja"
   | "horarios"
+  | "interesados"
   | "dashboard"
   | "gastos"
   | "crm"
@@ -30,6 +32,7 @@ const TODOS_LOS_ITEMS: ItemNav[] = [
   { href: "/inicio", etiqueta: "Inicio", icono: "inicio", seccion: "operativa" },
   { href: "/alumnos", etiqueta: "Alumnos", icono: "alumnos", seccion: "operativa" },
   { href: "/cobros", etiqueta: "Cobros", icono: "cobros", seccion: "operativa" },
+  { href: "/caja", etiqueta: "Caja", icono: "caja", seccion: "operativa" },
   { href: "/horarios", etiqueta: "Horarios", icono: "horarios", seccion: "operativa" },
   { href: "/dashboard", etiqueta: "Dashboard", icono: "dashboard", seccion: "dashboard" },
   { href: "/gastos", etiqueta: "Gastos", icono: "gastos", seccion: "gastos" },
