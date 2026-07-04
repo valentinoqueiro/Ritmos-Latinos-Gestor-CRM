@@ -13,6 +13,7 @@ import {
 } from "@/lib/reglas-leads";
 import { sedesVisibles } from "@/lib/sedes";
 import { Campo, Input, Select } from "@/componentes/campos";
+import { EncabezadoSeccion } from "@/componentes/encabezado";
 import { FormAccion } from "@/componentes/form-accion";
 import {
   agendarPrueba,
@@ -43,7 +44,7 @@ function TarjetaLead({
   const prueba = opciones.find((o) => o.id === lead.pruebaHorarioId);
 
   return (
-    <li className="rounded-2xl border border-borde bg-superficie p-4">
+    <li className="tarjeta p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="font-semibold">{lead.nombre}</p>
         <a
@@ -181,26 +182,26 @@ export default async function PaginaCrm() {
 
   return (
     <div>
-      <h1 className="titulo-display text-4xl">CRM</h1>
-      <p className="mt-1 text-sm text-tinta-suave">
-        Interesados de todas las sedes.
-      </p>
-
-      {/* Embudo de un vistazo */}
-      <div className="mt-4 flex flex-wrap gap-2">
-        {(Object.keys(ETIQUETA_ESTADO_LEAD) as EstadoLead[]).map((estado) => (
-          <span
-            key={estado}
-            className="rounded-full border border-borde bg-superficie px-3 py-1.5 text-xs font-medium"
-          >
-            {ETIQUETA_ESTADO_LEAD[estado]}:{" "}
-            <strong>{conteos[estado]}</strong>
+      <EncabezadoSeccion
+        titulo="Interesados"
+        subtitulo="El embudo de todas las sedes, del primer mensaje a la conversión."
+      >
+        {/* Embudo de un vistazo */}
+        <div className="flex flex-wrap gap-2">
+          {(Object.keys(ETIQUETA_ESTADO_LEAD) as EstadoLead[]).map((estado) => (
+            <span
+              key={estado}
+              className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-medium text-white/80 ring-1 ring-white/15"
+            >
+              {ETIQUETA_ESTADO_LEAD[estado]}:{" "}
+              <strong className="text-white">{conteos[estado]}</strong>
+            </span>
+          ))}
+          <span className="rounded-full bg-marca px-3 py-1.5 text-xs font-semibold text-white shadow-boton">
+            Conversión: {tasa === null ? "—" : `${Math.round(tasa * 100)}%`}
           </span>
-        ))}
-        <span className="rounded-full bg-tinta px-3 py-1.5 text-xs font-semibold text-white">
-          Conversión: {tasa === null ? "—" : `${Math.round(tasa * 100)}%`}
-        </span>
-      </div>
+        </div>
+      </EncabezadoSeccion>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_20rem]">
         <div>
@@ -212,7 +213,7 @@ export default async function PaginaCrm() {
                   {ETIQUETA_ESTADO_LEAD[estado]} ({lista.length})
                 </h2>
                 {lista.length === 0 ? (
-                  <p className="mt-2 rounded-2xl border border-dashed border-borde bg-superficie px-4 py-5 text-center text-sm text-tinta-suave">
+                  <p className="mt-2 tarjeta border-dashed px-4 py-5 text-center text-sm text-tinta-suave">
                     Nadie en este estado.
                   </p>
                 ) : (
@@ -272,7 +273,7 @@ export default async function PaginaCrm() {
           })}
         </div>
 
-        <section className="self-start rounded-2xl border border-borde bg-superficie p-4">
+        <section className="self-start tarjeta p-4">
           <h2 className="font-semibold">Nuevo interesado</h2>
           <FormAccion
             accion={crearLead}

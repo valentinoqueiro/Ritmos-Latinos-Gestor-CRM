@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requerirUsuario } from "@/lib/auth/guards";
+import { puedeAcceder } from "@/lib/auth/permissions";
 import { itemsParaRol, MAX_ITEMS_BARRA } from "@/lib/navegacion";
-import { IconoNavPorNombre, IconoSalir } from "@/componentes/iconos";
+import { EncabezadoSeccion } from "@/componentes/encabezado";
+import { IconoCrm, IconoNavPorNombre, IconoSalir } from "@/componentes/iconos";
 import { salir } from "../../login/actions";
 
 export const metadata: Metadata = { title: "Más" };
@@ -16,12 +18,26 @@ export default async function PaginaMas() {
 
   return (
     <div>
-      <h1 className="titulo-display text-4xl">Más</h1>
-      <p className="mt-1 text-sm text-tinta-suave">
-        {usuario.nombre} · {usuario.email}
-      </p>
+      <EncabezadoSeccion
+        titulo="Más"
+        subtitulo={`${usuario.nombre} · ${usuario.email}`}
+      />
 
-      <ul className="mt-6 overflow-hidden rounded-2xl border border-borde bg-superficie">
+      <ul className="tarjeta mt-6 overflow-hidden">
+        {puedeAcceder(usuario.rol, "crm") ? (
+          <li className="border-b border-borde">
+            <Link
+              href="/crm"
+              className="flex items-center gap-3 px-4 py-3.5 text-sm font-medium transition hover:bg-fondo"
+            >
+              <IconoCrm className="h-5 w-5 text-marca" />
+              Abrir CRM
+              <span className="ml-auto rounded-full bg-marca-suave px-2 py-0.5 text-[11px] font-semibold text-marca-oscuro">
+                App aparte
+              </span>
+            </Link>
+          </li>
+        ) : null}
         {restantes.map((item) => (
           <li key={item.href} className="border-b border-borde last:border-0">
             <Link

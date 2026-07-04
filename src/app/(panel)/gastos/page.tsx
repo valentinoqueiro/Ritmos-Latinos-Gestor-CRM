@@ -8,6 +8,7 @@ import { formatoFecha, hoyISO } from "@/lib/fechas";
 import { formatoMonto } from "@/lib/operativa";
 import { sedesVisibles } from "@/lib/sedes";
 import { Campo, Input, Select, claseInput } from "@/componentes/campos";
+import { ChipBanner, EncabezadoSeccion } from "@/componentes/encabezado";
 import { FormAccion } from "@/componentes/form-accion";
 import { crearGasto, eliminarGasto } from "./acciones";
 import { FormularioCampos } from "./formulario-campos";
@@ -81,7 +82,15 @@ export default async function PaginaGastos({
 
   return (
     <div>
-      <h1 className="titulo-display text-4xl">Gastos</h1>
+      <EncabezadoSeccion
+        titulo="Gastos"
+        subtitulo="Gastos por sede, con categorías y filtros por período."
+        extra={
+          <ChipBanner etiqueta="Total del período">
+            {formatoMonto(total)}
+          </ChipBanner>
+        }
+      />
 
       {/* Filtros */}
       <form
@@ -134,19 +143,19 @@ export default async function PaginaGastos({
 
       {/* Totales del período filtrado */}
       <div className="mt-5 grid gap-3 sm:grid-cols-3">
-        <article className="rounded-2xl border border-borde bg-superficie p-4">
+        <article className="tarjeta p-4">
           <h2 className="text-xs font-semibold uppercase tracking-wide text-tinta-suave">
             Total del período
           </h2>
           <p className="titulo-display mt-1 text-3xl">{formatoMonto(total)}</p>
         </article>
-        <article className="rounded-2xl border border-borde bg-superficie p-4">
+        <article className="tarjeta p-4">
           <h2 className="text-xs font-semibold uppercase tracking-wide text-tinta-suave">
             Fijos
           </h2>
           <p className="titulo-display mt-1 text-3xl">{formatoMonto(fijos)}</p>
         </article>
-        <article className="rounded-2xl border border-borde bg-superficie p-4">
+        <article className="tarjeta p-4">
           <h2 className="text-xs font-semibold uppercase tracking-wide text-tinta-suave">
             Variables
           </h2>
@@ -159,11 +168,11 @@ export default async function PaginaGastos({
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_20rem]">
         {/* Listado */}
         {lista.length === 0 ? (
-          <p className="self-start rounded-2xl border border-dashed border-borde bg-superficie px-6 py-10 text-center text-sm text-tinta-suave">
+          <p className="self-start tarjeta border-dashed px-6 py-10 text-center text-sm text-tinta-suave">
             No hay gastos cargados con estos filtros.
           </p>
         ) : (
-          <ul className="self-start overflow-hidden rounded-2xl border border-borde bg-superficie">
+          <ul className="self-start overflow-hidden tarjeta">
             {lista.map(({ gasto, categoria }) => (
               <li
                 key={gasto.id}
@@ -211,7 +220,7 @@ export default async function PaginaGastos({
         )}
 
         {/* Alta */}
-        <section className="self-start rounded-2xl border border-borde bg-superficie p-4">
+        <section className="self-start tarjeta p-4">
           <h2 className="font-semibold">Nuevo gasto</h2>
           {categoriasActivas.length === 0 ? (
             <p className="mt-2 text-sm text-tinta-suave">

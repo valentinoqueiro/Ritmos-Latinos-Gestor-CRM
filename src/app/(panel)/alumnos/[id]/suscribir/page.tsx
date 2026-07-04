@@ -56,7 +56,7 @@ export default async function PaginaSuscribir({
             Elegí el plan. Los precios son los vigentes de hoy.
           </p>
           {planes.length === 0 ? (
-            <div className="mt-6 rounded-2xl border border-dashed border-borde bg-superficie px-6 py-10 text-center text-sm text-tinta-suave">
+            <div className="mt-6 tarjeta border-dashed px-6 py-10 text-center text-sm text-tinta-suave">
               No hay planes activos en esta sede. El admin puede crearlos en
               Configuración.
             </div>
@@ -66,7 +66,7 @@ export default async function PaginaSuscribir({
                 <li key={plan.id}>
                   <Link
                     href={`/alumnos/${alumno.id}/suscribir?plan=${plan.id}`}
-                    className="block rounded-2xl border border-borde bg-superficie p-4 transition hover:border-marca"
+                    className="block tarjeta p-4 transition hover:border-marca"
                   >
                     <div className="flex items-center justify-between gap-2">
                       <p className="font-semibold">{plan.nombre}</p>
@@ -121,7 +121,7 @@ async function PasoHorarios({
 
   return (
     <div className="mt-4 max-w-xl">
-      <div className="rounded-2xl border border-borde bg-superficie p-4">
+      <div className="tarjeta p-4">
         <div className="flex items-center justify-between gap-2">
           <p className="font-semibold">{plan.nombre}</p>
           <p className="titulo-display text-2xl text-marca">

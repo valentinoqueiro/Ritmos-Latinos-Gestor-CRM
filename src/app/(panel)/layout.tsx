@@ -1,9 +1,12 @@
+import Image from "next/image";
+import Link from "next/link";
 import { requerirUsuario } from "@/lib/auth/guards";
+import { puedeAcceder } from "@/lib/auth/permissions";
 import { itemsParaRol } from "@/lib/navegacion";
 import { sedeActiva, sedesVisibles } from "@/lib/sedes";
 import { BarraInferior, NavLateral } from "@/componentes/nav";
 import { SelectorSede } from "@/componentes/selector-sede";
-import { IconoSalir, IconoSede } from "@/componentes/iconos";
+import { IconoCrm, IconoSalir, IconoSede } from "@/componentes/iconos";
 import { cambiarSede } from "./actions";
 import { salir } from "../login/actions";
 
@@ -20,12 +23,33 @@ export default async function PanelLayout({
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="sticky top-0 z-20 bg-tinta text-white">
-        <div className="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4">
-          <p className="titulo-display text-xl leading-none">
-            Ritmos <span className="text-marca">Latinos</span>
-          </p>
+        <div className="mx-auto flex h-14 w-full max-w-[1600px] items-center gap-3 px-4 md:px-6">
+          <Link href="/inicio" className="flex items-center gap-2.5">
+            <Image
+              src="/logo.png"
+              alt="Logo Ritmos Latinos"
+              width={36}
+              height={27}
+              priority
+              className="h-7 w-auto"
+            />
+            <p className="titulo-display text-xl leading-none">
+              Ritmos <span className="text-marca">Latinos</span>
+            </p>
+          </Link>
 
           <div className="ml-auto flex items-center gap-2">
+            {/* El CRM vive aparte del gestor: se abre desde acá. */}
+            {puedeAcceder(usuario.rol, "crm") ? (
+              <Link
+                href="/crm"
+                className="flex items-center gap-1.5 rounded-lg bg-marca px-3 py-1.5 text-xs font-semibold text-white shadow-boton transition hover:bg-marca-oscuro"
+              >
+                <IconoCrm className="h-4 w-4" />
+                Abrir CRM
+              </Link>
+            ) : null}
+
             {usuario.rol === "admin" && activa ? (
               <SelectorSede
                 sedes={visibles.map((s) => ({ id: s.id, nombre: s.nombre }))}
@@ -57,9 +81,9 @@ export default async function PanelLayout({
         </div>
       </header>
 
-      <div className="mx-auto flex w-full max-w-6xl flex-1">
+      <div className="mx-auto flex w-full max-w-[1600px] flex-1">
         <NavLateral items={items} />
-        <main className="min-w-0 flex-1 px-4 pb-24 pt-6 md:px-8 md:pb-10">
+        <main className="min-w-0 flex-1 px-4 pb-24 pt-5 md:px-6 md:pb-10 lg:px-8">
           {children}
         </main>
       </div>

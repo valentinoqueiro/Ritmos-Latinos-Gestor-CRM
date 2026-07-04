@@ -7,6 +7,7 @@ import { requerirSeccion } from "@/lib/auth/guards";
 import { umbralPorVencer } from "@/lib/cobros";
 import { sedesVisibles } from "@/lib/sedes";
 import { Campo, Input } from "@/componentes/campos";
+import { EncabezadoSeccion } from "@/componentes/encabezado";
 import { FormAccion } from "@/componentes/form-accion";
 import { guardarUmbral } from "./acciones";
 import { alternarCategoria, crearCategoria } from "../gastos/acciones";
@@ -33,12 +34,15 @@ export default async function PaginaConfiguracion() {
 
   return (
     <div>
-      <h1 className="titulo-display text-4xl">Configuración</h1>
+      <EncabezadoSeccion
+        titulo="Configuración"
+        subtitulo="Disciplinas, planes, usuarios y reglas del sistema."
+      />
 
       <div className="mt-6 grid gap-3 sm:grid-cols-2">
         <Link
           href="/configuracion/disciplinas"
-          className="rounded-2xl border border-borde bg-superficie p-4 transition hover:border-marca"
+          className="tarjeta p-4 transition hover:border-marca"
         >
           <p className="font-semibold">Disciplinas y horarios</p>
           <p className="mt-1 text-sm text-tinta-suave">
@@ -47,7 +51,7 @@ export default async function PaginaConfiguracion() {
         </Link>
         <Link
           href="/configuracion/planes"
-          className="rounded-2xl border border-borde bg-superficie p-4 transition hover:border-marca"
+          className="tarjeta p-4 transition hover:border-marca"
         >
           <p className="font-semibold">Planes y precios</p>
           <p className="mt-1 text-sm text-tinta-suave">
@@ -56,7 +60,7 @@ export default async function PaginaConfiguracion() {
         </Link>
         <Link
           href="/configuracion/api-keys"
-          className="rounded-2xl border border-borde bg-superficie p-4 transition hover:border-marca"
+          className="tarjeta p-4 transition hover:border-marca"
         >
           <p className="font-semibold">API keys</p>
           <p className="mt-1 text-sm text-tinta-suave">
@@ -65,7 +69,7 @@ export default async function PaginaConfiguracion() {
         </Link>
       </div>
 
-      <section className="mt-8 max-w-md rounded-2xl border border-borde bg-superficie p-4">
+      <section className="mt-8 max-w-md tarjeta p-4">
         <h2 className="font-semibold">Categorías de gasto</h2>
         {categorias.length > 0 ? (
           <ul className="mt-3 flex flex-wrap gap-1.5">
@@ -104,7 +108,7 @@ export default async function PaginaConfiguracion() {
         </FormAccion>
       </section>
 
-      <section className="mt-8 max-w-md rounded-2xl border border-borde bg-superficie p-4">
+      <section className="mt-8 max-w-md tarjeta p-4">
         <h2 className="font-semibold">Aviso de «por vencer»</h2>
         <p className="mt-1 text-sm text-tinta-suave">
           Cuántos días antes del vencimiento una cuota aparece como «por
@@ -136,7 +140,7 @@ export default async function PaginaConfiguracion() {
           {sedes.map((sede) => (
             <li
               key={sede.id}
-              className="rounded-2xl border border-borde bg-superficie p-4"
+              className="tarjeta p-4"
             >
               <p className="font-semibold">{sede.nombre}</p>
               <p className="mt-0.5 text-sm text-tinta-suave">
@@ -151,7 +155,7 @@ export default async function PaginaConfiguracion() {
         <h2 className="text-sm font-semibold uppercase tracking-wide text-tinta-suave">
           Usuarios
         </h2>
-        <div className="mt-3 overflow-x-auto rounded-2xl border border-borde bg-superficie">
+        <div className="mt-3 overflow-x-auto tarjeta">
           <table className="w-full min-w-130 text-left text-sm">
             <thead>
               <tr className="border-b border-borde text-xs uppercase tracking-wide text-tinta-suave">

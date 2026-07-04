@@ -12,19 +12,25 @@ import { IconoMas, IconoNavPorNombre } from "./iconos";
 export function NavLateral({ items }: { items: ItemNav[] }) {
   const rutaActual = usePathname();
   return (
-    <nav className="hidden w-52 shrink-0 flex-col gap-1 p-4 md:flex">
+    <nav className="sticky top-14 hidden max-h-[calc(100dvh-3.5rem)] w-56 shrink-0 flex-col gap-1 self-start overflow-y-auto p-4 md:flex">
       {items.map((item) => {
         const activo = rutaActual.startsWith(item.href);
         return (
           <Link
             key={item.href}
             href={item.href}
-            className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${
+            className={`relative flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition ${
               activo
-                ? "bg-marca-suave text-marca-oscuro"
-                : "text-tinta-suave hover:bg-superficie hover:text-tinta"
+                ? "bg-superficie text-marca-oscuro shadow-tarjeta"
+                : "text-tinta-suave hover:bg-superficie/70 hover:text-tinta"
             }`}
           >
+            {activo ? (
+              <span
+                aria-hidden
+                className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-full bg-marca"
+              />
+            ) : null}
             <IconoNavPorNombre nombre={item.icono} className="h-5 w-5" />
             {item.etiqueta}
           </Link>

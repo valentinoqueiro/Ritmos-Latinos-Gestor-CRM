@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import { FormularioLogin } from "./formulario";
 
 export const metadata: Metadata = { title: "Ingresar" };
@@ -16,9 +17,17 @@ export default function PaginaLogin() {
           aria-hidden
           className="absolute -bottom-32 -left-16 h-80 w-80 rounded-full bg-marca/15 blur-3xl"
         />
-        <p className="titulo-display relative text-lg text-white/70">
-          Ritmos Latinos
-        </p>
+        <div className="relative flex items-center gap-3">
+          <Image
+            src="/logo.png"
+            alt="Logo Ritmos Latinos"
+            width={48}
+            height={36}
+            priority
+            className="h-9 w-auto"
+          />
+          <p className="titulo-display text-lg text-white/70">Ritmos Latinos</p>
+        </div>
         <div className="relative mt-10 md:mt-0">
           <h1 className="titulo-display text-5xl leading-[0.95] md:text-7xl">
             El gestor

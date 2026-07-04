@@ -43,7 +43,7 @@ export default async function PaginaConfigDisciplinas() {
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_20rem]">
         <div className="grid gap-4">
           {lista.length === 0 ? (
-            <p className="rounded-2xl border border-dashed border-borde bg-superficie px-6 py-10 text-center text-sm text-tinta-suave">
+            <p className="tarjeta border-dashed px-6 py-10 text-center text-sm text-tinta-suave">
               Todavía no hay disciplinas en esta sede. Creá la primera con el
               formulario.
             </p>
@@ -55,7 +55,7 @@ export default async function PaginaConfigDisciplinas() {
               return (
                 <section
                   key={disciplina.id}
-                  className={`rounded-2xl border border-borde bg-superficie p-4 ${
+                  className={`tarjeta p-4 ${
                     disciplina.activa ? "" : "opacity-60"
                   }`}
                 >
@@ -142,7 +142,7 @@ export default async function PaginaConfigDisciplinas() {
         </div>
 
         <div className="grid gap-4 self-start">
-          <section className="rounded-2xl border border-borde bg-superficie p-4">
+          <section className="tarjeta p-4">
             <h2 className="font-semibold">Nueva disciplina</h2>
             <FormAccion
               accion={crearDisciplina}
@@ -156,7 +156,7 @@ export default async function PaginaConfigDisciplinas() {
             </FormAccion>
           </section>
 
-          <section className="rounded-2xl border border-borde bg-superficie p-4">
+          <section className="tarjeta p-4">
             <h2 className="font-semibold">Nuevo horario</h2>
             {activas.length === 0 ? (
               <p className="mt-2 text-sm text-tinta-suave">

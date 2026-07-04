@@ -52,14 +52,14 @@ export default async function PaginaConfigPlanes() {
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_20rem]">
         <div className="grid gap-4">
           {planes.length === 0 ? (
-            <p className="rounded-2xl border border-dashed border-borde bg-superficie px-6 py-10 text-center text-sm text-tinta-suave">
+            <p className="tarjeta border-dashed px-6 py-10 text-center text-sm text-tinta-suave">
               Todavía no hay planes en esta sede.
             </p>
           ) : (
             planes.map((plan) => (
               <section
                 key={plan.id}
-                className={`rounded-2xl border border-borde bg-superficie p-4 ${
+                className={`tarjeta p-4 ${
                   plan.activo ? "" : "opacity-60"
                 }`}
               >
@@ -134,7 +134,7 @@ export default async function PaginaConfigPlanes() {
           )}
         </div>
 
-        <section className="self-start rounded-2xl border border-borde bg-superficie p-4">
+        <section className="self-start tarjeta p-4">
           <h2 className="font-semibold">Nuevo plan</h2>
           {disciplinas.length === 0 ? (
             <p className="mt-2 text-sm text-tinta-suave">

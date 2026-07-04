@@ -1,5 +1,15 @@
 import "server-only";
-import { and, asc, count, desc, eq, ilike, inArray, or } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  countDistinct,
+  desc,
+  eq,
+  ilike,
+  inArray,
+  or,
+} from "drizzle-orm";
 import { db } from "@/db";
 import {
   alumnos,
@@ -123,6 +133,87 @@ export async function horariosConOcupacion(
 
   const porHorario = new Map(ocupacion.map((o) => [o.horarioId, o.inscriptos]));
   return filas.map((f) => ({ ...f, inscriptos: porHorario.get(f.id) ?? 0 }));
+}
+
+export type DisciplinaConInscriptos = {
+  id: number;
+  nombre: string;
+  inscriptos: number;
+};
+
+/**
+ * Disciplinas activas de la sede con la cantidad de alumnos distintos que
+ * cursan alguno de sus horarios (suscripciones activas). Alimenta las cards
+ * de la pantalla de Alumnos.
+ */
+export async function disciplinasConInscriptos(
+  usuario: UsuarioSesion,
+  sedeId: number,
+): Promise<DisciplinaConInscriptos[]> {
+  autorizarSede(usuario, sedeId);
+  return db
+    .select({
+      id: disciplinas.id,
+      nombre: disciplinas.nombre,
+      inscriptos: countDistinct(suscripciones.alumnoId),
+    })
+    .from(disciplinas)
+    .leftJoin(
+      horarios,
+      and(eq(horarios.disciplinaId, disciplinas.id), eq(horarios.activo, true)),
+    )
+    .leftJoin(
+      suscripcionesHorarios,
+      eq(suscripcionesHorarios.horarioId, horarios.id),
+    )
+    .leftJoin(
+      suscripciones,
+      and(
+        eq(suscripcionesHorarios.suscripcionId, suscripciones.id),
+        eq(suscripciones.estado, "activa"),
+      ),
+    )
+    .where(and(eq(disciplinas.sedeId, sedeId), eq(disciplinas.activa, true)))
+    .groupBy(disciplinas.id, disciplinas.nombre)
+    .orderBy(asc(disciplinas.nombre));
+}
+
+/** Alumnos (con suscripción activa) que cursan una disciplina de la sede. */
+export async function alumnosDeDisciplina(
+  usuario: UsuarioSesion,
+  sedeId: number,
+  disciplinaId: number,
+) {
+  autorizarSede(usuario, sedeId);
+  return db
+    .selectDistinct({
+      id: alumnos.id,
+      nombre: alumnos.nombre,
+      apellido: alumnos.apellido,
+      dni: alumnos.dni,
+      telefono: alumnos.telefono,
+    })
+    .from(alumnos)
+    .innerJoin(
+      suscripciones,
+      and(
+        eq(suscripciones.alumnoId, alumnos.id),
+        eq(suscripciones.estado, "activa"),
+      ),
+    )
+    .innerJoin(
+      suscripcionesHorarios,
+      eq(suscripcionesHorarios.suscripcionId, suscripciones.id),
+    )
+    .innerJoin(
+      horarios,
+      and(
+        eq(suscripcionesHorarios.horarioId, horarios.id),
+        eq(horarios.disciplinaId, disciplinaId),
+      ),
+    )
+    .where(eq(alumnos.sedeId, sedeId))
+    .orderBy(asc(alumnos.apellido), asc(alumnos.nombre));
 }
 
 // --- Planes y precios -----------------------------------------------------

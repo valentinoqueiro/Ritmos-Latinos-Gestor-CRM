@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   calcularVencimiento,
   diasParaVencer,
+  esAbandono,
   estadoCuota,
   sumarUnMes,
 } from "../vencimientos";
@@ -82,5 +83,22 @@ describe("estadoCuota (derivado, nunca guardado)", () => {
   it("diasParaVencer: positivo si falta, negativo si venció", () => {
     expect(diasParaVencer("2026-07-08", HOY)).toBe(5);
     expect(diasParaVencer("2026-06-30", HOY)).toBe(-3);
+  });
+});
+
+describe("esAbandono (moroso hasta 10 días vencida; después, dejó)", () => {
+  it("vencida hasta 10 días: sigue siendo moroso", () => {
+    expect(esAbandono(-1)).toBe(false);
+    expect(esAbandono(-10)).toBe(false);
+  });
+
+  it("vencida hace más de 10 días: dejó de venir", () => {
+    expect(esAbandono(-11)).toBe(true);
+    expect(esAbandono(-45)).toBe(true);
+  });
+
+  it("al día o nunca pagó: no cuenta como abandono", () => {
+    expect(esAbandono(3)).toBe(false);
+    expect(esAbandono(null)).toBe(false);
   });
 });

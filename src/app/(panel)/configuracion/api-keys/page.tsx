@@ -42,14 +42,14 @@ export default async function PaginaApiKeys() {
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_20rem]">
         <div className="grid gap-4">
           {lista.length === 0 ? (
-            <p className="rounded-2xl border border-dashed border-borde bg-superficie px-6 py-10 text-center text-sm text-tinta-suave">
+            <p className="tarjeta border-dashed px-6 py-10 text-center text-sm text-tinta-suave">
               Todavía no hay ninguna API key creada.
             </p>
           ) : (
             lista.map((key) => (
               <section
                 key={key.id}
-                className={`rounded-2xl border border-borde bg-superficie p-4 ${
+                className={`tarjeta p-4 ${
                   key.activa ? "" : "opacity-60"
                 }`}
               >
@@ -97,7 +97,7 @@ export default async function PaginaApiKeys() {
         </div>
 
         <div className="grid gap-4 self-start">
-          <section className="rounded-2xl border border-borde bg-superficie p-4">
+          <section className="tarjeta p-4">
             <h2 className="font-semibold">Nueva API key</h2>
             <p className="mt-1 text-sm text-tinta-suave">
               La clave se muestra una sola vez al crearla. Guardala en un

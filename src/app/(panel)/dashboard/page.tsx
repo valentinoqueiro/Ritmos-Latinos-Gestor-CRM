@@ -19,7 +19,9 @@ import {
 import { ZONA_HORARIA, formatoFecha, ultimosMeses } from "@/lib/fechas";
 import { sedesVisibles } from "@/lib/sedes";
 import { estaLleno } from "@/lib/reglas-suscripcion";
+import { DIAS_HASTA_ABANDONO, esAbandono } from "@/lib/vencimientos";
 import { GraficoLineas } from "@/componentes/grafico-lineas";
+import { EncabezadoSeccion } from "@/componentes/encabezado";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -95,6 +97,10 @@ export default async function PaginaDashboard({
     lista.map((c) => ({ ...c, sede: alcance[i].nombre })),
   );
   const vencidas = cobros.filter((c) => c.estado === "vencida");
+  // Moroso = vencida hasta 10 días; más de 10 días = dejó de venir (regla en
+  // src/lib/vencimientos.ts). "Nunca pagó" cuenta como moroso, no abandono.
+  const morosos = vencidas.filter((c) => !esAbandono(c.diasRestantes));
+  const dejaron = vencidas.filter((c) => esAbandono(c.diasRestantes));
   const porVencer = cobros.filter((c) => c.estado === "por_vencer");
   const nombreSede = (id: number) =>
     sedes.find((s) => s.id === id)?.nombre.replace("Sede ", "") ?? "";
@@ -102,43 +108,45 @@ export default async function PaginaDashboard({
 
   return (
     <div>
-      <h1 className="titulo-display text-4xl">Dashboard</h1>
-      {esOwner ? (
-        <p className="mt-1 text-sm text-tinta-suave">
-          Vista de solo lectura para los dueños.
-        </p>
-      ) : null}
-
-      {/* Selector sede / consolidado */}
-      <nav className="mt-4 flex flex-wrap gap-2">
-        <Link
-          href="/dashboard"
-          className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-            !sedeElegida
-              ? "bg-tinta text-white"
-              : "border border-borde bg-superficie hover:border-marca"
-          }`}
-        >
-          Consolidado
-        </Link>
-        {sedes.map((s) => (
+      <EncabezadoSeccion
+        titulo="Dashboard"
+        subtitulo={
+          esOwner
+            ? "Vista de solo lectura para los dueños."
+            : "Los números del negocio, con las mismas reglas que la operatoria."
+        }
+      >
+        {/* Selector sede / consolidado */}
+        <nav className="flex flex-wrap gap-2">
           <Link
-            key={s.id}
-            href={`/dashboard?sede=${s.id}`}
+            href="/dashboard"
             className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-              sedeElegida?.id === s.id
-                ? "bg-tinta text-white"
-                : "border border-borde bg-superficie hover:border-marca"
+              !sedeElegida
+                ? "bg-marca text-white shadow-boton"
+                : "bg-white/10 text-white/80 ring-1 ring-white/20 hover:bg-white/20"
             }`}
           >
-            {s.nombre}
+            Consolidado
           </Link>
-        ))}
-      </nav>
+          {sedes.map((s) => (
+            <Link
+              key={s.id}
+              href={`/dashboard?sede=${s.id}`}
+              className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                sedeElegida?.id === s.id
+                  ? "bg-marca text-white shadow-boton"
+                  : "bg-white/10 text-white/80 ring-1 ring-white/20 hover:bg-white/20"
+              }`}
+            >
+              {s.nombre}
+            </Link>
+          ))}
+        </nav>
+      </EncabezadoSeccion>
 
       {/* KPIs del mes */}
-      <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <article className="rounded-2xl border border-borde bg-superficie p-4">
+      <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+        <article className="tarjeta p-4">
           <h2 className="text-xs font-semibold uppercase tracking-wide text-tinta-suave">
             Ingresos del mes
           </h2>
@@ -146,7 +154,7 @@ export default async function PaginaDashboard({
             {formatoMonto(mesActual.ingresos)}
           </p>
         </article>
-        <article className="rounded-2xl border border-borde bg-superficie p-4">
+        <article className="tarjeta p-4">
           <h2 className="text-xs font-semibold uppercase tracking-wide text-tinta-suave">
             Gastos del mes
           </h2>
@@ -154,7 +162,7 @@ export default async function PaginaDashboard({
             {formatoMonto(mesActual.gastos)}
           </p>
         </article>
-        <article className="rounded-2xl border border-borde bg-superficie p-4">
+        <article className="tarjeta p-4">
           <h2 className="text-xs font-semibold uppercase tracking-wide text-tinta-suave">
             Resultado del mes
           </h2>
@@ -166,7 +174,7 @@ export default async function PaginaDashboard({
             {formatoMonto(mesActual.resultado)}
           </p>
         </article>
-        <article className="rounded-2xl border border-borde bg-superficie p-4">
+        <article className="tarjeta p-4">
           <h2 className="text-xs font-semibold uppercase tracking-wide text-tinta-suave">
             Alumnos activos
           </h2>
@@ -176,10 +184,21 @@ export default async function PaginaDashboard({
             mes
           </p>
         </article>
+        <article className="tarjeta border-t-4 border-t-peligro p-4">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-tinta-suave">
+            Dejaron de venir
+          </h2>
+          <p className="titulo-display mt-1 text-3xl text-peligro">
+            {dejaron.length}
+          </p>
+          <p className="mt-1 text-xs text-tinta-suave">
+            cuota vencida hace más de {DIAS_HASTA_ABANDONO} días
+          </p>
+        </article>
       </div>
 
       {/* Evolución */}
-      <section className="mt-6 rounded-2xl border border-borde bg-superficie p-4">
+      <section className="mt-6 tarjeta p-4">
         <GraficoLineas
           titulo="Evolución de los últimos 6 meses"
           etiquetas={meses.map(etiquetaMes)}
@@ -240,7 +259,7 @@ export default async function PaginaDashboard({
           {alcance.map((sede, i) => (
             <div
               key={sede.id}
-              className="rounded-2xl border border-borde bg-superficie p-4"
+              className="tarjeta p-4"
             >
               <h3 className="text-sm font-semibold">{sede.nombre}</h3>
               <ul className="mt-2 grid gap-1.5">
@@ -265,25 +284,50 @@ export default async function PaginaDashboard({
         </div>
       </section>
 
-      {/* Morosos y por vencer */}
-      <section className="mt-6 grid gap-4 lg:grid-cols-2">
-        <div className="rounded-2xl border border-borde bg-superficie p-4">
+      {/* Morosos, por vencer y abandonos */}
+      <section className="mt-6 grid gap-4 lg:grid-cols-3">
+        <div className="tarjeta p-4">
           <h2 className="titulo-display text-2xl text-peligro">
-            Morosos ({vencidas.length})
+            Morosos ({morosos.length})
           </h2>
-          <ListaCobros cobros={vencidas} esOwner={esOwner} conSede={!sedeElegida} nombreSede={nombreSede} />
+          <p className="mt-0.5 text-xs text-tinta-suave">
+            Vencida hasta {DIAS_HASTA_ABANDONO} días (o sin pagos).
+          </p>
+          <ListaCobros cobros={morosos} esOwner={esOwner} conSede={!sedeElegida} nombreSede={nombreSede} />
         </div>
-        <div className="rounded-2xl border border-borde bg-superficie p-4">
+        <div className="tarjeta p-4">
           <h2 className="titulo-display text-2xl text-alerta">
             Por vencer ({porVencer.length})
           </h2>
+          <p className="mt-0.5 text-xs text-tinta-suave">
+            Se vencen en los próximos días.
+          </p>
           <ListaCobros cobros={porVencer} esOwner={esOwner} conSede={!sedeElegida} nombreSede={nombreSede} />
+        </div>
+        <div className="tarjeta p-4">
+          <h2 className="titulo-display text-2xl">
+            Dejaron ({dejaron.length})
+          </h2>
+          <p className="mt-0.5 text-xs text-tinta-suave">
+            Más de {DIAS_HASTA_ABANDONO} días vencida: los damos por baja.
+          </p>
+          <ListaCobros cobros={dejaron} esOwner={esOwner} conSede={!sedeElegida} nombreSede={nombreSede} />
         </div>
       </section>
 
       {/* CRM (cross-sede) */}
-      <section className="mt-6 rounded-2xl border border-borde bg-superficie p-4">
-        <h2 className="titulo-display text-2xl">CRM · Interesados</h2>
+      <section className="mt-6 tarjeta p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="titulo-display text-2xl">CRM · Interesados</h2>
+          {!esOwner ? (
+            <Link
+              href="/crm"
+              className="rounded-lg bg-marca px-3 py-1.5 text-xs font-semibold text-white shadow-boton transition hover:bg-marca-oscuro"
+            >
+              Abrir CRM →
+            </Link>
+          ) : null}
+        </div>
         <p className="mt-1 text-xs text-tinta-suave">
           Todas las sedes (el CRM es transversal).
         </p>
@@ -305,7 +349,7 @@ export default async function PaginaDashboard({
       </section>
 
       {/* Cumpleaños del mes */}
-      <section className="mt-6 rounded-2xl border border-borde bg-superficie p-4">
+      <section className="mt-6 tarjeta p-4">
         <h2 className="titulo-display text-2xl">
           Cumpleaños del mes ({cumples.length})
         </h2>

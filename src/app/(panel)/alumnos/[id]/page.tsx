@@ -96,7 +96,7 @@ export default async function PaginaFichaAlumno({
         Suscripciones y estado de cuota
       </h2>
       {suscripciones.length === 0 ? (
-        <div className="mt-3 rounded-2xl border border-dashed border-borde bg-superficie px-6 py-10 text-center">
+        <div className="mt-3 tarjeta border-dashed px-6 py-10 text-center">
           <p className="font-medium">Sin suscripciones todavía.</p>
           <p className="mt-1 text-sm text-tinta-suave">
             Creale una con el botón «+ Suscripción».
@@ -112,7 +112,7 @@ export default async function PaginaFichaAlumno({
             return (
               <li
                 key={sub.id}
-                className="rounded-2xl border border-borde bg-superficie p-4"
+                className="tarjeta p-4"
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="font-semibold">{sub.plan}</p>

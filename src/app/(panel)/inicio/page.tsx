@@ -4,8 +4,13 @@ import { requerirSeccion } from "@/lib/auth/guards";
 import { cobrosDeSede, type CobroDeSuscripcion } from "@/lib/cobros";
 import { ZONA_HORARIA } from "@/lib/fechas";
 import { sedeActiva } from "@/lib/sedes";
+import { ChipBanner, EncabezadoSeccion } from "@/componentes/encabezado";
 
 export const metadata: Metadata = { title: "Inicio" };
+
+// En el inicio solo mostramos las cuotas que vencieron en los últimos días:
+// las deudas más viejas viven en Cobros (y el dashboard las trata aparte).
+const DIAS_VENCIDAS_RECIENTES = 7;
 
 function ListaCorta({ cobros }: { cobros: CobroDeSuscripcion[] }) {
   return (
@@ -27,7 +32,7 @@ function ListaCorta({ cobros }: { cobros: CobroDeSuscripcion[] }) {
               href={`https://wa.me/${wa}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="shrink-0 rounded-full bg-ok/10 px-2.5 py-1 text-xs font-semibold text-ok"
+              className="shrink-0 rounded-full bg-ok/10 px-2.5 py-1 text-xs font-semibold text-ok transition hover:bg-ok/20"
             >
               WhatsApp
             </a>
@@ -42,7 +47,12 @@ export default async function PaginaInicio() {
   const usuario = await requerirSeccion("operativa");
   const sede = await sedeActiva(usuario);
   const cobros = sede ? await cobrosDeSede(usuario, sede.id) : [];
-  const vencidas = cobros.filter((c) => c.estado === "vencida");
+  const vencidas = cobros.filter(
+    (c) =>
+      c.estado === "vencida" &&
+      c.diasRestantes !== null &&
+      c.diasRestantes >= -DIAS_VENCIDAS_RECIENTES,
+  );
   const porVencer = cobros.filter((c) => c.estado === "por_vencer");
 
   const fecha = new Intl.DateTimeFormat("es-AR", {
@@ -55,21 +65,21 @@ export default async function PaginaInicio() {
 
   return (
     <div>
-      <p className="text-sm text-tinta-suave">{hoy}</p>
-      <h1 className="titulo-display mt-1 text-4xl">
-        Hola, {usuario.nombre.split(" ")[0]}
-      </h1>
-      {sede ? (
-        <p className="mt-1 text-sm text-tinta-suave">
-          Estás operando <strong>{sede.nombre}</strong>.
-        </p>
-      ) : null}
+      <EncabezadoSeccion
+        titulo={`¡Hola, ${usuario.nombre.split(" ")[0]}!`}
+        subtitulo={hoy}
+        extra={
+          sede ? (
+            <ChipBanner etiqueta="Te encontrás en">{sede.nombre}</ChipBanner>
+          ) : null
+        }
+      />
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
-        <article className="rounded-2xl border border-borde bg-superficie p-5">
+        <article className="tarjeta p-5">
           <div className="flex items-baseline justify-between gap-2">
             <h2 className="text-sm font-semibold text-tinta-suave">
-              Cuotas vencidas
+              Cuotas vencidas · últimos {DIAS_VENCIDAS_RECIENTES} días
             </h2>
             <Link href="/cobros" className="text-xs font-medium underline">
               ver todas
@@ -78,11 +88,15 @@ export default async function PaginaInicio() {
           <p className="titulo-display mt-2 text-4xl text-peligro">
             {vencidas.length}
           </p>
-          {vencidas.length > 0 ? <ListaCorta cobros={vencidas} /> : (
-            <p className="mt-2 text-xs text-tinta-suave">Nadie debe la cuota.</p>
+          {vencidas.length > 0 ? (
+            <ListaCorta cobros={vencidas} />
+          ) : (
+            <p className="mt-2 text-xs text-tinta-suave">
+              Nadie venció en los últimos {DIAS_VENCIDAS_RECIENTES} días.
+            </p>
           )}
         </article>
-        <article className="rounded-2xl border border-borde bg-superficie p-5">
+        <article className="tarjeta p-5">
           <div className="flex items-baseline justify-between gap-2">
             <h2 className="text-sm font-semibold text-tinta-suave">
               Cuotas por vencer
@@ -94,7 +108,9 @@ export default async function PaginaInicio() {
           <p className="titulo-display mt-2 text-4xl text-alerta">
             {porVencer.length}
           </p>
-          {porVencer.length > 0 ? <ListaCorta cobros={porVencer} /> : (
+          {porVencer.length > 0 ? (
+            <ListaCorta cobros={porVencer} />
+          ) : (
             <p className="mt-2 text-xs text-tinta-suave">
               Nada por vencer en los próximos días.
             </p>
@@ -106,23 +122,11 @@ export default async function PaginaInicio() {
         Accesos rápidos
       </h2>
       <div className="mt-3 flex flex-wrap gap-2">
-        <Link
-          href="/alumnos/nuevo"
-          className="rounded-full bg-marca px-4 py-2 text-sm font-semibold text-white transition hover:bg-marca-oscuro"
-        >
+        <Link href="/alumnos/nuevo" className="boton-primario">
           + Nuevo alumno
         </Link>
-        <Link
-          href="/cobros"
-          className="rounded-full border border-borde bg-superficie px-4 py-2 text-sm font-medium transition hover:border-marca"
-        >
+        <Link href="/cobros" className="boton-secundario">
           Registrar pagos
-        </Link>
-        <Link
-          href="/horarios"
-          className="rounded-full border border-borde bg-superficie px-4 py-2 text-sm font-medium transition hover:border-marca"
-        >
-          Ver horarios
         </Link>
       </div>
     </div>

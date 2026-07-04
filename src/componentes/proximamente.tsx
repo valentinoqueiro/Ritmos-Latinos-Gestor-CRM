@@ -9,7 +9,7 @@ export function Proximamente({
   fase: number;
 }) {
   return (
-    <div className="mt-6 flex flex-col items-center rounded-2xl border border-dashed border-borde bg-superficie px-6 py-14 text-center">
+    <div className="mt-6 flex flex-col items-center tarjeta border-dashed px-6 py-14 text-center">
       <span className="rounded-full bg-marca-suave px-3 py-1 text-xs font-semibold uppercase tracking-wide text-marca-oscuro">
         Llega en la fase {fase}
       </span>

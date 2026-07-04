@@ -21,6 +21,14 @@
   --font-display: var(--font-bebas), "Impact", "Arial Narrow Bold", sans-serif;
   --font-sans: var(--font-inter), system-ui, -apple-system, "Segoe UI", Roboto,
     sans-serif;
+
+  /* Escala de sombras de la casa: cálidas (derivadas de la tinta), nunca grises frías. */
+  --shadow-tarjeta: 0 1px 2px rgb(38 35 37 / 0.04),
+    0 10px 30px -18px rgb(38 35 37 / 0.16);
+  --shadow-tarjeta-alta: 0 2px 4px rgb(38 35 37 / 0.05),
+    0 18px 40px -20px rgb(38 35 37 / 0.28);
+  --shadow-boton: 0 1px 2px rgb(195 41 53 / 0.25),
+    0 6px 16px -8px rgb(195 41 53 / 0.45);
 }
 
 body {
@@ -36,3 +44,113 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
+
+/* --- Componentes de la casa ------------------------------------------------
+ * Clases compartidas para que cards, botones y banners se vean iguales en
+ * todas las secciones. Van en @layer components para que las utilities de
+ * Tailwind puedan pisarlas puntualmente (border-dashed, border-t-4, etc.).
+ */
+@layer components {
+
+/* Card estándar del panel. */
+.tarjeta {
+  background: var(--color-superficie);
+  border: 1px solid var(--color-borde);
+  border-radius: 1.25rem;
+  box-shadow: var(--shadow-tarjeta);
+}
+
+/* Card clickeable o con acciones: se levanta apenas al pasar el mouse. */
+.tarjeta-interactiva {
+  transition:
+    box-shadow 200ms ease,
+    border-color 200ms ease,
+    transform 200ms ease;
+}
+.tarjeta-interactiva:hover {
+  border-color: color-mix(in srgb, var(--color-marca) 45%, var(--color-borde));
+  box-shadow: var(--shadow-tarjeta-alta);
+  transform: translateY(-2px);
+}
+
+/* Botones. Altura mínima 44px táctil en los primarios. */
+.boton-primario {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0.625rem 1.25rem;
+  border-radius: 0.875rem;
+  background: linear-gradient(160deg, var(--color-marca) 0%, var(--color-marca-oscuro) 100%);
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 600;
+  box-shadow: var(--shadow-boton);
+  cursor: pointer;
+  transition:
+    filter 180ms ease,
+    transform 180ms ease,
+    box-shadow 180ms ease;
+}
+.boton-primario:hover {
+  filter: brightness(1.06);
+  box-shadow: var(--shadow-tarjeta-alta);
+}
+.boton-primario:active {
+  transform: scale(0.97);
+}
+
+.boton-secundario {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0.625rem 1.125rem;
+  border-radius: 0.875rem;
+  background: var(--color-superficie);
+  border: 1px solid var(--color-borde);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-tinta);
+  box-shadow: var(--shadow-tarjeta);
+  cursor: pointer;
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
+}
+.boton-secundario:hover {
+  border-color: color-mix(in srgb, var(--color-marca) 55%, var(--color-borde));
+  box-shadow: var(--shadow-tarjeta-alta);
+}
+.boton-secundario:active {
+  transform: scale(0.97);
+}
+
+/* Banner de encabezado de sección (tinta + brillo de marca). */
+.banner-seccion {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.5rem;
+  color: #fff;
+  background:
+    radial-gradient(120% 180% at 100% 0%, rgb(217 50 64 / 0.4) 0%, transparent 48%),
+    radial-gradient(90% 150% at 0% 110%, rgb(217 50 64 / 0.22) 0%, transparent 55%),
+    linear-gradient(130deg, #2f2a2c 0%, #262325 55%, #1d1a1c 100%);
+  box-shadow: var(--shadow-tarjeta-alta);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tarjeta-interactiva,
+  .boton-primario,
+  .boton-secundario {
+    transition: none;
+  }
+  .tarjeta-interactiva:hover {
+    transform: none;
+  }
+}
+
+} /* @layer components */

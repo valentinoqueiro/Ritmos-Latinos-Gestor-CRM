@@ -78,3 +78,16 @@ export function estadoCuota(
 export function diasParaVencer(vence: string, hoy: string): number {
   return diasEntre(hoy, vence);
 }
+
+// Regla de abandono (pedida por el cliente el 2026-07-04): un alumno es
+// MOROSO mientras su cuota lleve vencida hasta 10 días; pasados los 10 días
+// se considera que DEJÓ de venir (baja implícita, sin tocar la suscripción).
+export const DIAS_HASTA_ABANDONO = 10;
+
+/**
+ * ¿La cuota vencida cuenta como abandono? `diasRestantes` es negativo cuando
+ * venció (diasParaVencer); null (nunca pagó) no es abandono: nunca arrancó.
+ */
+export function esAbandono(diasRestantes: number | null): boolean {
+  return diasRestantes !== null && diasRestantes < -DIAS_HASTA_ABANDONO;
+}
