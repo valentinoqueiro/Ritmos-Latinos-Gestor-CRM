@@ -17,6 +17,7 @@ import { esAlcanceValido, generarClave } from "@/lib/auth/api-keys";
 import { exigirSeccion } from "@/lib/auth/guards";
 import { autorizarSede, ErrorAutorizacion } from "@/lib/auth/permissions";
 import { CLAVE_UMBRAL } from "@/lib/cobros";
+import { CLAVE_MENSAJE_INTERESADOS } from "@/lib/mensajes";
 
 // Acciones de configuración (solo admin). Toda acción valida sección y sede
 // en el servidor y revalida las pantallas afectadas.
@@ -166,6 +167,35 @@ export async function editarCupo(formData: FormData): Promise<void> {
   await db.update(horarios).set({ cupo }).where(eq(horarios.id, id));
   revalidatePath("/configuracion");
   revalidatePath("/horarios");
+}
+
+// --- Mensaje a interesados (plantilla de WhatsApp del mostrador) ---------------
+
+export async function guardarMensajeInteresados(
+  _estado: EstadoAccion,
+  formData: FormData,
+): Promise<EstadoAccion> {
+  try {
+    await exigirSeccion("configuracion");
+    const mensaje = z
+      .string()
+      .trim()
+      .min(10, "El mensaje es muy corto")
+      .max(600, "El mensaje es muy largo")
+      .parse(formData.get("mensaje"));
+    await db
+      .insert(configuracion)
+      .values({ clave: CLAVE_MENSAJE_INTERESADOS, valor: mensaje })
+      .onConflictDoUpdate({
+        target: configuracion.clave,
+        set: { valor: mensaje },
+      });
+    revalidatePath("/configuracion");
+    revalidatePath("/interesados");
+    return { ok: true };
+  } catch (error) {
+    return mensajeDeError(error);
+  }
 }
 
 // --- Parámetros (umbral de "por vencer") --------------------------------------

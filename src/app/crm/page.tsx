@@ -58,8 +58,10 @@ function TarjetaLead({
       </div>
       <p className="mt-1 text-xs text-tinta-suave">
         {lead.telefono}
+        {lead.email ? ` · ${lead.email}` : ""}
         {sedeInteres ? ` · le interesa ${sedeInteres}` : ""}
         {lead.origen === "api" ? ` · vía ${lead.fuente ?? "API"}` : ""}
+        {lead.fuente === "mostrador" ? " · vino a averiguar" : ""}
         {lead.nota ? ` · ${lead.nota}` : ""}
       </p>
       {lead.estado === "prueba_agendada" && lead.pruebaFecha ? (
@@ -295,6 +297,9 @@ export default async function PaginaCrm() {
                   </option>
                 ))}
               </Select>
+            </Campo>
+            <Campo etiqueta="Email (opcional)">
+              <Input name="email" type="email" />
             </Campo>
             <Campo etiqueta="Nota (opcional)">
               <Input name="nota" placeholder="Ej.: preguntó por pole" />

@@ -14,8 +14,13 @@ import {
   usuarios,
 } from "./schema";
 import { hashearPassword } from "../lib/auth/password";
+import {
+  CLAVE_MENSAJE_INTERESADOS,
+  MENSAJE_INTERESADOS_DEFAULT,
+} from "../lib/mensajes";
 import { calcularVencimiento } from "../lib/vencimientos";
 import { hoyISO } from "../lib/fechas";
+import { configuracion } from "./schema";
 import {
   categoriasGasto,
   gastos,
@@ -791,6 +796,42 @@ async function main() {
       },
     ]);
   }
+
+  // Interesados cargados HOY desde el mostrador (Fase 8).
+  const hayMostrador = await db.query.leads.findFirst({
+    where: eq(leads.fuente, "mostrador"),
+  });
+  if (!hayMostrador) {
+    await db.insert(leads).values([
+      {
+        nombre: "Rocío Fernández",
+        telefono: "381 555 3005",
+        email: "rocio.f@mail.test",
+        sedeInteresId: aconquija.id,
+        origen: "manual",
+        fuente: "mostrador",
+        nota: "Vino a averiguar por zumba a la mañana",
+        estado: "nuevo",
+      },
+      {
+        nombre: "Julieta Paz",
+        telefono: "381 555 3006",
+        sedeInteresId: aconquija.id,
+        origen: "manual",
+        fuente: "mostrador",
+        estado: "nuevo",
+      },
+    ]);
+  }
+
+  // Plantilla del mensaje de WhatsApp a interesados (editable en Configuración).
+  await db
+    .insert(configuracion)
+    .values({
+      clave: CLAVE_MENSAJE_INTERESADOS,
+      valor: MENSAJE_INTERESADOS_DEFAULT,
+    })
+    .onConflictDoNothing();
 
   console.log("Seed listo.");
   console.log("Usuarios de prueba (contraseña: %s):", PASSWORD_PRUEBA);

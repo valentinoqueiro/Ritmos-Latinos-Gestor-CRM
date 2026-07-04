@@ -76,7 +76,7 @@ export default async function PaginaConvertirLead({
           <Input name="telefono" required defaultValue={lead.telefono} />
         </Campo>
         <Campo etiqueta="Email (opcional)">
-          <Input name="email" type="email" />
+          <Input name="email" type="email" defaultValue={lead.email ?? ""} />
         </Campo>
         <Campo etiqueta="Fecha de nacimiento (opcional)">
           <Input name="fechaNacimiento" type="date" />

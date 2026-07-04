@@ -1,15 +1,19 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { asc } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { usuarios } from "@/db/schema";
+import { configuracion, usuarios } from "@/db/schema";
 import { requerirSeccion } from "@/lib/auth/guards";
 import { umbralPorVencer } from "@/lib/cobros";
+import {
+  CLAVE_MENSAJE_INTERESADOS,
+  MENSAJE_INTERESADOS_DEFAULT,
+} from "@/lib/mensajes";
 import { sedesVisibles } from "@/lib/sedes";
-import { Campo, Input } from "@/componentes/campos";
+import { Campo, claseInput, Input } from "@/componentes/campos";
 import { EncabezadoSeccion } from "@/componentes/encabezado";
 import { FormAccion } from "@/componentes/form-accion";
-import { guardarUmbral } from "./acciones";
+import { guardarMensajeInteresados, guardarUmbral } from "./acciones";
 import { alternarCategoria, crearCategoria } from "../gastos/acciones";
 import { categoriasGasto } from "@/db/schema";
 
@@ -23,12 +27,19 @@ const ETIQUETA_ROL: Record<string, string> = {
 
 export default async function PaginaConfiguracion() {
   const usuario = await requerirSeccion("configuracion");
-  const [sedes, listaUsuarios, umbral, categorias] = await Promise.all([
-    sedesVisibles(usuario),
-    db.query.usuarios.findMany({ orderBy: asc(usuarios.nombre) }),
-    umbralPorVencer(),
-    db.query.categoriasGasto.findMany({ orderBy: asc(categoriasGasto.nombre) }),
-  ]);
+  const [sedes, listaUsuarios, umbral, categorias, filaMensaje] =
+    await Promise.all([
+      sedesVisibles(usuario),
+      db.query.usuarios.findMany({ orderBy: asc(usuarios.nombre) }),
+      umbralPorVencer(),
+      db.query.categoriasGasto.findMany({
+        orderBy: asc(categoriasGasto.nombre),
+      }),
+      db.query.configuracion.findFirst({
+        where: eq(configuracion.clave, CLAVE_MENSAJE_INTERESADOS),
+      }),
+    ]);
+  const mensajeInteresados = filaMensaje?.valor ?? MENSAJE_INTERESADOS_DEFAULT;
   const nombreSede = (sedeId: number | null) =>
     sedes.find((s) => s.id === sedeId)?.nombre ?? "Todas";
 
@@ -127,6 +138,31 @@ export default async function PaginaConfiguracion() {
               required
               defaultValue={umbral}
               className="w-24"
+            />
+          </Campo>
+        </FormAccion>
+      </section>
+
+      <section className="mt-8 max-w-md tarjeta p-4">
+        <h2 className="font-semibold">Mensaje a interesados</h2>
+        <p className="mt-1 text-sm text-tinta-suave">
+          Lo que manda la secretaría por WhatsApp desde Interesados. Usá{" "}
+          <code className="rounded bg-fondo px-1">{"{nombre}"}</code> para
+          insertar el nombre de la persona.
+        </p>
+        <FormAccion
+          accion={guardarMensajeInteresados}
+          textoBoton="Guardar mensaje"
+          variante="secundario"
+          className="mt-3"
+        >
+          <Campo etiqueta="Mensaje">
+            <textarea
+              name="mensaje"
+              required
+              rows={4}
+              defaultValue={mensajeInteresados}
+              className={`${claseInput} h-auto py-2`}
             />
           </Campo>
         </FormAccion>

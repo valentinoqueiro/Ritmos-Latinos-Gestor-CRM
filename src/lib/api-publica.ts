@@ -99,6 +99,12 @@ export const esquemaLeadPublico = z.object({
     .trim()
     .min(6, "Poné el teléfono/WhatsApp")
     .regex(/^[\d\s+()-]+$/, "El teléfono tiene caracteres inválidos"),
+  email: z
+    .string()
+    .trim()
+    .email("El email no parece válido")
+    .nullable()
+    .optional(),
   sedeInteresId: z.number().int().positive().nullable().optional(),
   fuente: z
     .string()
@@ -128,6 +134,7 @@ export async function crearLeadPublico(datos: DatosLeadPublico) {
     .values({
       nombre: datos.nombre,
       telefono: datos.telefono,
+      email: datos.email ?? null,
       sedeInteresId: datos.sedeInteresId ?? null,
       nota: datos.nota ?? null,
       origen: "api",

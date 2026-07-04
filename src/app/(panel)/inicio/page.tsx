@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { and, count, eq, sql } from "drizzle-orm";
+import { db } from "@/db";
+import { leads } from "@/db/schema";
 import { requerirSeccion } from "@/lib/auth/guards";
 import { detalleDeTurno, turnoAbierto } from "@/lib/caja";
 import {
@@ -10,7 +13,7 @@ import {
 } from "@/lib/cobros";
 import { linkWhatsApp } from "@/lib/mensajes";
 import { formatoHora, formatoMonto } from "@/lib/operativa";
-import { formatoFecha, ZONA_HORARIA } from "@/lib/fechas";
+import { formatoFecha, hoyISO, ZONA_HORARIA } from "@/lib/fechas";
 import { sedeActiva } from "@/lib/sedes";
 import { ChipBanner, EncabezadoSeccion } from "@/componentes/encabezado";
 
@@ -61,10 +64,22 @@ function ListaCorta({ cobros }: { cobros: CobroDeSuscripcion[] }) {
 export default async function PaginaInicio() {
   const usuario = await requerirSeccion("operativa");
   const sede = await sedeActiva(usuario);
-  const [cobros, turno, deudoresHoy] = await Promise.all([
+  const hoyEnAR = sql`to_char(${leads.creadoEn} at time zone ${ZONA_HORARIA}, 'YYYY-MM-DD')`;
+  const [cobros, turno, deudoresHoy, [interesadosHoy]] = await Promise.all([
     sede ? cobrosDeSede(usuario, sede.id) : [],
     sede ? turnoAbierto(sede.id) : null,
     sede ? deudoresDeHoy(usuario, sede.id) : [],
+    sede
+      ? db
+          .select({ n: count() })
+          .from(leads)
+          .where(
+            and(
+              eq(leads.sedeInteresId, sede.id),
+              sql`${hoyEnAR} = ${hoyISO()}`,
+            ),
+          )
+      : [{ n: 0 }],
   ]);
   const turnoDetalle = turno ? await detalleDeTurno(usuario, turno.id) : null;
   const deudoresPorDisciplina = new Map<string, DeudorDeHoy[]>();
@@ -197,6 +212,24 @@ export default async function PaginaInicio() {
           )}
         </article>
       </div>
+
+      {/* Interesados del día: acceso directo al mostrador */}
+      {sede ? (
+        <article className="mt-4 tarjeta flex flex-wrap items-center justify-between gap-3 p-5">
+          <div>
+            <h2 className="text-sm font-semibold text-tinta-suave">
+              Interesados de hoy
+            </h2>
+            <p className="titulo-display mt-1 text-4xl">{interesadosHoy.n}</p>
+            <p className="mt-0.5 text-xs text-tinta-suave">
+              Gente que vino o escribió a averiguar hoy.
+            </p>
+          </div>
+          <Link href="/interesados" className="boton-secundario shrink-0">
+            + Cargar interesado
+          </Link>
+        </article>
+      ) : null}
 
       {/* Deudores con clase hoy: para encararlos cuando llegan al mostrador */}
       <section className="mt-6 tarjeta p-5">

@@ -58,6 +58,11 @@ const esquemaLead = z.object({
     .trim()
     .min(6, "Poné el teléfono/WhatsApp")
     .regex(/^[\d\s+()-]+$/, "El teléfono tiene caracteres inválidos"),
+  email: z
+    .string()
+    .trim()
+    .transform((v) => (v === "" ? null : v))
+    .pipe(z.string().email("El email no parece válido").nullable()),
   sedeInteresId: z
     .string()
     .transform((v) => (v === "" ? null : Number(v)))
@@ -78,6 +83,7 @@ export async function crearLead(
     const datos = esquemaLead.parse({
       nombre: formData.get("nombre"),
       telefono: formData.get("telefono"),
+      email: formData.get("email") ?? "",
       sedeInteresId: formData.get("sedeInteresId") ?? "",
       nota: formData.get("nota") ?? "",
     });

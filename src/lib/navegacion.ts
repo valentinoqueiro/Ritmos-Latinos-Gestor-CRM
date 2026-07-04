@@ -34,6 +34,7 @@ const TODOS_LOS_ITEMS: ItemNav[] = [
   { href: "/cobros", etiqueta: "Cobros", icono: "cobros", seccion: "operativa" },
   { href: "/caja", etiqueta: "Caja", icono: "caja", seccion: "operativa" },
   { href: "/horarios", etiqueta: "Horarios", icono: "horarios", seccion: "operativa" },
+  { href: "/interesados", etiqueta: "Interesados", icono: "interesados", seccion: "interesados" },
   { href: "/dashboard", etiqueta: "Dashboard", icono: "dashboard", seccion: "dashboard" },
   { href: "/gastos", etiqueta: "Gastos", icono: "gastos", seccion: "gastos" },
   { href: "/configuracion", etiqueta: "Configuración", icono: "configuracion", seccion: "configuracion" },
