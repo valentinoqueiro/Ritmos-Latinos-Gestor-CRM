@@ -27,11 +27,11 @@ export default async function PaginaSuscribir({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ plan?: string }>;
+  searchParams: Promise<{ plan?: string; creada?: string }>;
 }) {
   const usuario = await requerirSeccion("operativa");
   const { id } = await params;
-  const { plan: planParam } = await searchParams;
+  const { plan: planParam, creada } = await searchParams;
   const ficha = await fichaDeAlumno(usuario, Number(id));
   if (!ficha) notFound();
   const { alumno } = ficha;
@@ -43,12 +43,27 @@ export default async function PaginaSuscribir({
 
   return (
     <div>
+      {creada ? (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-ok/10 px-4 py-3">
+          <p className="text-sm font-medium text-ok">
+            Suscripción creada. ¿Va a otra disciplina o plan? Elegilo abajo.
+          </p>
+          <Link
+            href={`/alumnos/${alumno.id}`}
+            className="shrink-0 rounded-lg bg-ok px-3 py-1.5 text-xs font-semibold text-white transition hover:brightness-110"
+          >
+            Terminar → ver ficha
+          </Link>
+        </div>
+      ) : null}
       <p className="text-sm text-tinta-suave">
         <Link href={`/alumnos/${alumno.id}`} className="underline">
           {alumno.nombre} {alumno.apellido}
         </Link>
       </p>
-      <h1 className="titulo-display mt-1 text-4xl">Nueva suscripción</h1>
+      <h1 className="titulo-display mt-1 text-4xl">
+        {creada ? "¿Otra suscripción?" : "Nueva suscripción"}
+      </h1>
 
       {!planElegido ? (
         <>

@@ -112,7 +112,9 @@ export async function crearAlumno(
   } catch (error) {
     return mensajeDeError(error);
   }
-  redirect(`/alumnos/${alumnoId}`);
+  // El alta sigue directo en la suscripción (y desde ahí se pueden encadenar
+  // varias); la ficha queda para consultar después.
+  redirect(`/alumnos/${alumnoId}/suscribir`);
 }
 
 export async function editarAlumno(
@@ -237,7 +239,9 @@ export async function crearSuscripcion(
   } catch (error) {
     return mensajeDeError(error);
   }
-  redirect(`/alumnos/${alumnoId}`);
+  // Vuelve a suscribir con banner de éxito: desde ahí se agrega otra o se
+  // termina en la ficha (varias suscripciones en el mismo alta).
+  redirect(`/alumnos/${alumnoId}/suscribir?creada=1`);
 }
 
 // --- Pagos (Fase 3) -------------------------------------------------------------
