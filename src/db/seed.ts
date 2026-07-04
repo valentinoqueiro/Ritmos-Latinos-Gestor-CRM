@@ -379,12 +379,12 @@ async function asegurarPagoMixtoEnTurno(
 async function main() {
   // --- Sedes y usuarios (Fase 1) ------------------------------------------
   const aconquija = await asegurarSede({
-    nombre: "Sede Aconquija",
+    nombre: "Sede SQ",
     direccion: "Av. Aconquija 946, Unidad Sionista",
     telefono: "5493816332438",
   });
   const yerbaBuena = await asegurarSede({
-    nombre: "Sede Yerba Buena",
+    nombre: "Sede LS",
     direccion: "Julio Argentino Roca 124, Yerba Buena",
     telefono: "5493815838208",
   });
