@@ -6,10 +6,16 @@ import { DIAS, fichaDeAlumno, formatoHora, formatoMonto } from "@/lib/operativa"
 import { pagosDeSuscripciones, umbralPorVencer } from "@/lib/cobros";
 import { formatoFecha, hoyISO } from "@/lib/fechas";
 import { diasParaVencer, estadoCuota } from "@/lib/vencimientos";
+import { puedeCorregirContratos } from "@/lib/auth/permissions";
 import { Campo, Input } from "@/componentes/campos";
 import { EstadoCuotaChip } from "@/componentes/estado-cuota";
 import { FormAccion } from "@/componentes/form-accion";
-import { darDeBajaSuscripcion, registrarEntrega } from "../acciones";
+import {
+  borrarContrato,
+  corregirContrato,
+  darDeBajaSuscripcion,
+  registrarEntrega,
+} from "../acciones";
 
 export const metadata: Metadata = { title: "Ficha del alumno" };
 
@@ -28,6 +34,7 @@ export default async function PaginaFichaAlumno({
   const ficha = await fichaDeAlumno(usuario, Number(id));
   if (!ficha) notFound();
   const { alumno, suscripciones } = ficha;
+  const esAdminDeContratos = puedeCorregirContratos(usuario.rol);
   const telefonoWa = alumno.telefono.replace(/\D/g, "");
 
   const [historial, umbral] = await Promise.all([
@@ -238,6 +245,67 @@ export default async function PaginaFichaAlumno({
                                 </li>
                               ))}
                             </ul>
+                          ) : null}
+                          {esAdminDeContratos ? (
+                            <details className="mt-2">
+                              <summary className="cursor-pointer text-xs font-semibold text-tinta-suave">
+                                Corregir contrato (admin)…
+                              </summary>
+                              <div className="mt-2 grid gap-3 rounded-lg border border-borde bg-superficie p-3">
+                                <FormAccion
+                                  accion={corregirContrato}
+                                  textoBoton="Guardar corrección"
+                                  variante="secundario"
+                                >
+                                  <input
+                                    type="hidden"
+                                    name="pagoId"
+                                    value={p.id}
+                                  />
+                                  <div className="grid gap-3 sm:grid-cols-2">
+                                    <Campo etiqueta="Vence el">
+                                      <Input
+                                        name="vence"
+                                        type="date"
+                                        required
+                                        defaultValue={p.vence}
+                                      />
+                                    </Campo>
+                                    <Campo etiqueta="Inicio del contrato">
+                                      <Input
+                                        name="fechaContrato"
+                                        type="date"
+                                        defaultValue={p.fechaPago}
+                                      />
+                                    </Campo>
+                                  </div>
+                                  <Campo etiqueta="Motivo (queda en el contrato)">
+                                    <Input
+                                      name="motivo"
+                                      defaultValue={p.nota ?? ""}
+                                      placeholder="Ej.: pagó pero se cargó con fecha equivocada"
+                                    />
+                                  </Campo>
+                                </FormAccion>
+                                <FormAccion
+                                  accion={borrarContrato}
+                                  textoBoton="Borrar contrato"
+                                  variante="peligro"
+                                >
+                                  <input
+                                    type="hidden"
+                                    name="pagoId"
+                                    value={p.id}
+                                  />
+                                  <p className="text-xs text-tinta-suave">
+                                    Se borran también sus entregas: desaparecen
+                                    de ingresos y de los cierres de caja. Si
+                                    era el único pago, la cuota vuelve a
+                                    figurar vencida.
+                                  </p>
+                                </FormAccion>
+                              </div>
+                            </details>
                           ) : null}
                           {p.saldoPendiente > 0 ? (
                             <details className="mt-2">

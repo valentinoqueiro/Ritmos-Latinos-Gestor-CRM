@@ -16,7 +16,11 @@ import {
   suscripcionesHorarios,
 } from "@/db/schema";
 import { exigirSeccion } from "@/lib/auth/guards";
-import { autorizarSede, ErrorAutorizacion } from "@/lib/auth/permissions";
+import {
+  autorizarSede,
+  ErrorAutorizacion,
+  puedeCorregirContratos,
+} from "@/lib/auth/permissions";
 import { turnoAbierto } from "@/lib/caja";
 import { venceVigente } from "@/lib/cobros";
 import { esDeudor, saldoPendiente, totalEntregado, validarReparto } from "@/lib/deuda";
@@ -419,6 +423,116 @@ export async function registrarEntrega(
     return mensajeDeError(error);
   }
   redirect(`/alumnos/${alumnoId}?pago=ok`);
+}
+
+// --- Correcciones de contratos (SOLO admin, decisión 2026-07-04) -----------------
+
+/** Corrige el vencimiento (y opcionalmente la fecha de inicio) de un contrato. */
+export async function corregirContrato(
+  _estado: EstadoAccion,
+  formData: FormData,
+): Promise<EstadoAccion> {
+  try {
+    const usuario = await exigirSeccion("operativa");
+    if (!puedeCorregirContratos(usuario.rol)) {
+      return { error: "Solo la administración puede corregir contratos" };
+    }
+    const datos = z
+      .object({
+        pagoId: z.coerce.number().int().positive(),
+        vence: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/, "La fecha de vencimiento no es válida"),
+        fechaContrato: z
+          .string()
+          .trim()
+          .transform((v) => (v === "" ? null : v))
+          .pipe(
+            z
+              .string()
+              .regex(/^\d{4}-\d{2}-\d{2}$/, "La fecha de inicio no es válida")
+              .nullable(),
+          ),
+        motivo: z
+          .string()
+          .trim()
+          .max(200, "El motivo es muy largo")
+          .transform((v) => (v === "" ? null : v)),
+      })
+      .parse({
+        pagoId: formData.get("pagoId"),
+        vence: formData.get("vence"),
+        fechaContrato: formData.get("fechaContrato") ?? "",
+        motivo: formData.get("motivo") ?? "",
+      });
+
+    const pago = await db.query.pagos.findFirst({
+      where: eq(pagos.id, datos.pagoId),
+    });
+    if (!pago) return { error: "El contrato no existe" };
+    autorizarSede(usuario, pago.sedeId);
+
+    await db
+      .update(pagos)
+      .set({
+        vence: datos.vence,
+        fechaPago: datos.fechaContrato ?? pago.fechaPago,
+        nota: datos.motivo,
+      })
+      .where(eq(pagos.id, pago.id));
+
+    const sub = await db.query.suscripciones.findFirst({
+      where: eq(suscripciones.id, pago.suscripcionId),
+    });
+    if (sub) revalidatePath(`/alumnos/${sub.alumnoId}`);
+    revalidatePath("/inicio");
+    revalidatePath("/cobros");
+    revalidatePath("/dashboard");
+    return { ok: true };
+  } catch (error) {
+    return mensajeDeError(error);
+  }
+}
+
+/**
+ * Borra un contrato con TODAS sus entregas (cascade). No hay nada que
+ * recalcular: el estado de la cuota siempre se deriva de los pagos restantes.
+ */
+export async function borrarContrato(
+  _estado: EstadoAccion,
+  formData: FormData,
+): Promise<EstadoAccion> {
+  try {
+    const usuario = await exigirSeccion("operativa");
+    if (!puedeCorregirContratos(usuario.rol)) {
+      return { error: "Solo la administración puede borrar contratos" };
+    }
+    const pagoId = z.coerce
+      .number()
+      .int()
+      .positive()
+      .parse(formData.get("pagoId"));
+
+    const pago = await db.query.pagos.findFirst({
+      where: eq(pagos.id, pagoId),
+    });
+    if (!pago) return { error: "El contrato no existe" };
+    autorizarSede(usuario, pago.sedeId);
+
+    const sub = await db.query.suscripciones.findFirst({
+      where: eq(suscripciones.id, pago.suscripcionId),
+    });
+    await db.delete(pagos).where(eq(pagos.id, pago.id));
+
+    if (sub) revalidatePath(`/alumnos/${sub.alumnoId}`);
+    revalidatePath("/inicio");
+    revalidatePath("/cobros");
+    revalidatePath("/caja");
+    revalidatePath("/dashboard");
+    return { ok: true };
+  } catch (error) {
+    return mensajeDeError(error);
+  }
 }
 
 export async function darDeBajaSuscripcion(
