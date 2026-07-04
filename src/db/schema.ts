@@ -385,21 +385,45 @@ export const estadoLeadEnum = pgEnum("estado_lead", [
   "perdido",
 ]);
 
-// Origen: carga manual hoy; "api" queda listo para la ingesta de la Fase 7
-// (Meta Ads, formularios, agentes) con la fuente identificada en texto.
+// Origen TÉCNICO: cómo entró el lead al sistema (una persona o la API).
+// El origen de NEGOCIO (Meta Ads, mostrador, referido…) es otra dimensión,
+// configurable, en la tabla origenes_negocio (rediseño CRM, fase R1).
 export const origenLeadEnum = pgEnum("origen_lead", ["manual", "api"]);
+
+// Catálogo configurable de orígenes de negocio de un lead (de dónde vino el
+// interesado). Se desactivan, no se borran (los leads históricos los referencian).
+export const origenesNegocio = pgTable(
+  "origenes_negocio",
+  {
+    id: serial("id").primaryKey(),
+    nombre: text("nombre").notNull(),
+    activo: boolean("activo").notNull().default(true),
+  },
+  (tabla) => [uniqueIndex("origenes_negocio_nombre_unico").on(tabla.nombre)],
+);
 
 export const leads = pgTable("leads", {
   id: serial("id").primaryKey(),
   nombre: text("nombre").notNull(),
   telefono: text("telefono").notNull(),
   email: text("email"),
-  // Sede de interés opcional: el CRM es cross-sede.
+  // OBSOLETO (rediseño CRM): la sede se deriva de las disciplinas de interés
+  // (lead_disciplinas). Se conserva como dato histórico y por compatibilidad
+  // de la API v1; las pantallas nuevas no lo piden.
   sedeInteresId: integer("sede_interes_id").references(() => sedes.id),
   origen: origenLeadEnum("origen").notNull().default("manual"),
   fuente: text("fuente"),
+  // De dónde vino el interesado (catálogo configurable); null = sin clasificar.
+  origenNegocioId: integer("origen_negocio_id").references(
+    () => origenesNegocio.id,
+  ),
   nota: text("nota"),
   estado: estadoLeadEnum("estado").notNull().default("nuevo"),
+  // Cuándo entró a la etapa actual: alimenta el "hace cuánto está acá" del
+  // kanban y la alerta de lead frío. Se actualiza en cada transición.
+  etapaDesde: timestamp("etapa_desde", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
   // Clase de prueba: fecha + horario existente, sin sobre-ingeniería.
   pruebaFecha: date("prueba_fecha"),
   pruebaHorarioId: integer("prueba_horario_id").references(() => horarios.id),
@@ -414,7 +438,55 @@ export const leads = pgTable("leads", {
     .defaultNow(),
 });
 
+// Disciplinas de interés del lead (multi). Como cada disciplina pertenece a
+// exactamente una sede, la(s) sede(s) del lead se DERIVAN de acá: el lead
+// nunca elige sede. Sin disciplinas = sin sede = fuera de las métricas por
+// disciplina/sede (con contador visible para que la admin lo clasifique).
+export const leadDisciplinas = pgTable(
+  "lead_disciplinas",
+  {
+    leadId: integer("lead_id")
+      .notNull()
+      .references(() => leads.id, { onDelete: "cascade" }),
+    disciplinaId: integer("disciplina_id")
+      .notNull()
+      .references(() => disciplinas.id),
+  },
+  (tabla) => [primaryKey({ columns: [tabla.leadId, tabla.disciplinaId] })],
+);
+
+export const tipoActividadLeadEnum = pgEnum("tipo_actividad_lead", [
+  "nota", // nota manual de seguimiento (con canal de contacto)
+  "sistema", // evento automático: cambio de etapa, prueba, conversión, pérdida
+]);
+
+export const canalContactoEnum = pgEnum("canal_contacto", [
+  "whatsapp",
+  "llamada",
+  "presencial",
+  "otro",
+]);
+
+// Historial de actividad del lead: qué pasó, cuándo y por qué canal. Las
+// acciones del pipeline registran eventos "sistema"; la admin agrega "nota".
+export const leadActividades = pgTable("lead_actividades", {
+  id: serial("id").primaryKey(),
+  leadId: integer("lead_id")
+    .notNull()
+    .references(() => leads.id, { onDelete: "cascade" }),
+  tipo: tipoActividadLeadEnum("tipo").notNull(),
+  // Solo para notas manuales: por dónde se contactó.
+  canal: canalContactoEnum("canal"),
+  detalle: text("detalle").notNull(),
+  registradoPorId: integer("registrado_por_id").references(() => usuarios.id),
+  creadoEn: timestamp("creado_en", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
 export type Lead = typeof leads.$inferSelect;
+export type OrigenNegocio = typeof origenesNegocio.$inferSelect;
+export type LeadActividad = typeof leadActividades.$inferSelect;
 
 // ---------------------------------------------------------------------------
 // API pública v1 (Fase 7) — API keys para integraciones externas

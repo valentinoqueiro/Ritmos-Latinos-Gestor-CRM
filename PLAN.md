@@ -27,6 +27,34 @@
 
 Estados posibles: ⬜ Pendiente · 🟡 En curso · ✅ Terminada (con fecha).
 
+### Mejoras posteriores al plan original (fases A–G, 2026-07-04)
+
+Pedidas por el cliente después de la Fase 7; todas ✅ terminadas, verificadas e2e y en producción. Detalle en `CHANGELOG.md` y en "Decisiones de implementación (A–G)" más abajo.
+
+| Fase | Qué agregó |
+|---|---|
+| A | Esquema contrato+entregas, caja e interesados + reglas puras y permisos nuevos |
+| B | Pagos mixtos (efectivo+transferencia) y parciales con deuda visible |
+| C | Caja por turnos (apertura/cierre libre, resumen y cierres) |
+| D | Deudores con clase hoy en el Inicio de la secretaria |
+| E | Interesados en el mostrador con WhatsApp prellenado (secretaria) |
+| F | Correcciones de contratos solo admin (editar vencimiento, borrar) |
+| G | Alta encadenada de suscripciones |
+
+**Nota:** el deploy inicial se completó el 2026-07-04 (Neon + Vercel, usuarios admin reales creados); la Fase 8 sigue pendiente en lo demás (auditoría, manual, carga de datos reales).
+
+### Rediseño del CRM (fases R1–R5, aprobado 2026-07-04)
+
+El CRM evoluciona a un pipeline kanban con disciplinas de interés (la sede se DERIVA de la disciplina), historial de actividad, alerta de lead frío, retención "a recontactar" dentro del CRM y métricas por disciplina/sede/origen. Plan detallado y decisiones del cliente en el documento del rediseño; reglas de ejecución: una fase por vez, con freno para revisión.
+
+| # | Fase | Estado | Fecha |
+|---|------|--------|-------|
+| R1 | Cimientos del modelo + deuda documental | ✅ Terminada | 2026-07-04 |
+| R2 | Kanban + ficha del lead + alerta de frío (admin) | ⬜ Pendiente | — |
+| R3 | Captura evolucionada (secretaria) + API v1 (GET /leads) | ⬜ Pendiente | — |
+| R4 | Retención en el CRM + conversión enriquecida | ⬜ Pendiente | — |
+| R5 | Métricas del CRM + verificación e2e + cierre | ⬜ Pendiente | — |
+
 ---
 
 ## 1. Resumen ejecutivo
@@ -544,6 +572,25 @@ Al terminar: verificá los criterios de aceptación de la Fase 8 de PLAN.md junt
 **5. Migración de los datos del cuaderno.** ¿Importador masivo o carga manual? **Recomendación:** carga manual asistida en la Fase 8 (con flujos de alta rápida si hacen falta): son ~90 alumnos, el volumen no justifica construir un importador, y la carga manual sirve además de capacitación para las secretarias. Riesgo asociado: si la carga inicial se percibe pesada, la adopción arranca mal — mitigación: que las altas rápidas tomen segundos por alumno y la carga pueda repartirse entre sedes. *Estado: abierta — confirmar con el cliente antes de la Fase 8.*
 
 ---
+
+## Decisiones de implementación tomadas (Rediseño CRM R1, 2026-07-04)
+
+- **Disciplinas de interés del lead**: relación muchos-a-muchos lead↔disciplina contra el catálogo del gestor. La sede se **deriva** de las disciplinas (`sedesDeInteres` en `src/lib/reglas-crm.ts`); un lead con disciplinas de dos sedes pertenece a ambas. `leads.sede_interes_id` queda **obsoleto** (histórico + compatibilidad API v1; las pantallas nuevas no lo piden).
+- **Retrocesos de etapa permitidos entre etapas abiertas** (decisión del cliente 2026-07-04, para el kanban): nuevo ↔ contactado ↔ prueba agendada; Convertido/Perdido siguen finales; convertir sigue exigiendo contacto previo (`reglas-leads.ts` actualizado con tests).
+- **Marca temporal de etapa** (`leads.etapa_desde`): se actualiza en cada transición; los leads preexistentes se inicializaron con su `actualizado_en` (aproximación documentada). Alimenta el "hace cuánto está acá" del kanban y la **alerta de lead frío** (más de N días sin cambiar de etapa; umbral configurable, clave `umbral_lead_frio_dias`, default 3 — cliente 2026-07-04).
+- **Historial de actividad** (`lead_actividades`): eventos "sistema" automáticos en cada transición (contactado, prueba con fecha, perdido con motivo, convertido) + notas manuales con canal (whatsapp/llamada/presencial/otro, UI en R2).
+- **Catálogo de orígenes de negocio** (`origenes_negocio`, configurable): Meta Ads, Instagram, Mostrador, Web, Referido, Otro. Dimensión distinta del enum técnico `origen` manual/api + `fuente` (que dicen CÓMO entró; el catálogo dice DE DÓNDE vino). Backfill: los leads con `fuente` coincidente se clasificaron solos; la captura del mostrador asigna "Mostrador" automáticamente.
+- **Leads sin disciplina**: quedan sin sede y fuera de las métricas por disciplina/sede (mejor no contar que contar mal), pero con contador **visible y accionable** para la admin (UI en R2/R5); se completan desde la ficha.
+
+## Decisiones de implementación tomadas (Fases A–G, 2026-07-04)
+
+- **Modelo contrato + entregas**: `pagos.monto` = monto ACORDADO de la cuota; el dinero real vive en `pago_entregas` (medio, fecha, turno). Pago mixto = 2 entregas; parcial = entregas < acordado → **deudor** con saldo derivado visible (ficha, Inicio, Cobros); completar deuda agrega entregas (saldo releído en transacción). `pagos.fecha_pago` re-semantizada como **fecha de inicio del contrato** (retro-datable): el vencimiento corre desde ahí; las entregas se fechan cuando entra la plata. `pagos.medio` eliminada (backfill 1 entrega por pago). Ingresos del dashboard = suma de entregas por fecha de entrega.
+- **Caja por turnos**: apertura/cierre libre por sede (`turnos_caja`, índice único parcial: un turno abierto por sede), egresos del turno (`movimientos_caja`), entregas atribuidas por FK (no por ventana temporal). Resumen SIEMPRE derivado: nuevos (primer contrato del alumno), renovados, efectivo, transferencia, egresos, efectivo esperado. Aviso si un turno supera 16 h.
+- **Deudores con clase hoy**: cuota vencida reciente (≤10 días, `esAbandono`) o saldo parcial, cruzado con los horarios del día — en el Inicio de la secretaria con WhatsApp.
+- **Interesados en el mostrador**: sección propia (permiso nuevo `interesados`: secretaria+admin) con captura rápida y WhatsApp **prellenado** (plantilla en `configuracion`, editable por admin, placeholder `{nombre}`; `src/lib/mensajes.ts`). El lead entra al CRM como "nuevo" con fuente "mostrador"; duplicados por teléfono con lead abierto rechazados. `leads.email` agregado (CRM + API v1).
+- **Correcciones sensibles solo admin** (`puedeCorregirContratos`): editar vencimiento/fecha de inicio con motivo (`pagos.nota`) y borrar contrato (cascade a entregas); sin rol nuevo — decisión del cliente 2026-07-04.
+- **Alta encadenada**: crear alumno → directo a suscribir → "¿Otra suscripción?" para encadenar varias.
+- **Sedes renombradas** (cliente 2026-07-04): "Sede SQ" (Av. Aconquija 946) y "Sede LS" (J. A. Roca 124).
 
 ## Decisiones de implementación tomadas (Fase 1, 2026-07-03)
 

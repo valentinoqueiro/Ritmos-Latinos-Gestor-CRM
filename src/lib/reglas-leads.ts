@@ -16,14 +16,16 @@ export const ETIQUETA_ESTADO_LEAD: Record<EstadoLead, string> = {
   perdido: "Perdido",
 };
 
-// Desde cada estado, a dónde se puede avanzar. "Perdido" es posible desde
-// cualquier estado abierto (un lead se puede perder en cualquier momento);
-// convertir requiere haberlo contactado al menos. Los estados finales
-// (convertido / perdido) no se mueven más.
+// Desde cada estado, a dónde se puede mover. Entre etapas ABIERTAS se puede
+// ir y volver libremente (decisión del cliente 2026-07-04 para el kanban:
+// corregir un arrastre errado o retroceder una prueba que se cayó). "Perdido"
+// es posible desde cualquier estado abierto; convertir requiere haberlo
+// contactado al menos. Los estados finales (convertido / perdido) no se
+// mueven más.
 const TRANSICIONES: Record<EstadoLead, ReadonlySet<EstadoLead>> = {
   nuevo: new Set(["contactado", "prueba_agendada", "perdido"]),
-  contactado: new Set(["prueba_agendada", "convertido", "perdido"]),
-  prueba_agendada: new Set(["convertido", "perdido"]),
+  contactado: new Set(["nuevo", "prueba_agendada", "convertido", "perdido"]),
+  prueba_agendada: new Set(["nuevo", "contactado", "convertido", "perdido"]),
   convertido: new Set(),
   perdido: new Set(),
 };

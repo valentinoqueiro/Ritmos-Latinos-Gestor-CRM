@@ -30,9 +30,14 @@ describe("transiciones del pipeline", () => {
     expect(esEstadoFinal("contactado")).toBe(false);
   });
 
-  it("no se retrocede en el pipeline", () => {
-    expect(puedeTransicionar("prueba_agendada", "contactado")).toBe(false);
-    expect(puedeTransicionar("contactado", "nuevo")).toBe(false);
+  it("se puede retroceder entre etapas abiertas (kanban, decisión 2026-07-04)", () => {
+    expect(puedeTransicionar("prueba_agendada", "contactado")).toBe(true);
+    expect(puedeTransicionar("prueba_agendada", "nuevo")).toBe(true);
+    expect(puedeTransicionar("contactado", "nuevo")).toBe(true);
+  });
+
+  it("retroceder no salta las reglas: nuevo sigue sin poder convertirse", () => {
+    expect(puedeTransicionar("nuevo", "convertido")).toBe(false);
   });
 });
 

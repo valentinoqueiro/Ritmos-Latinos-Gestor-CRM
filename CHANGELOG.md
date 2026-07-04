@@ -2,6 +2,32 @@
 
 > Registro de cambios del sistema de gestión. Cada sesión de trabajo agrega su entrada al cierre: fecha, fase, qué se hizo, decisiones tomadas y pendientes que quedaron.
 
+## 2026-07-04 — Rediseño CRM · R1: cimientos del modelo + deuda documental
+
+**Hecho:**
+- Migración `0008_crm-cimientos` (aditiva, sin cambios de comportamiento visibles): disciplinas de interés del lead (`lead_disciplinas`, muchos-a-muchos con el catálogo del gestor — la sede se DERIVA de la disciplina), catálogo configurable de orígenes de negocio (`origenes_negocio`, semilla: Meta Ads, Instagram, Mostrador, Web, Referido, Otro) con backfill de leads históricos por coincidencia de `fuente`, marca temporal de etapa (`leads.etapa_desde`, inicializada con `actualizado_en`) e historial de actividad (`lead_actividades`).
+- Todas las transiciones del pipeline (contactar, agendar prueba, perder, convertir) actualizan `etapa_desde` y registran un evento "sistema" en el historial, en transacción.
+- Retrocesos de etapa permitidos entre etapas abiertas (decisión del cliente para el kanban); Convertido/Perdido siguen finales y convertir sigue exigiendo contacto previo. Tests actualizados.
+- Reglas puras nuevas en `src/lib/reglas-crm.ts` (derivación de sedes, días en etapa, lead frío con umbral configurable `umbral_lead_frio_dias`, default 3) con tests.
+- La captura del mostrador clasifica el origen de negocio "Mostrador" automáticamente.
+- Deuda documental saldada: PLAN.md y CHANGELOG.md registran las fases A–G y el plan del rediseño R1–R5.
+
+**Pendiente:** R2 (kanban + ficha + alerta de frío) tras revisión del cliente.
+
+## 2026-07-04 — Fases A–G: caja, pagos mixtos/parciales, interesados y más (registro retroactivo)
+
+> Estas fases se implementaron, verificaron e2e y desplegaron el 2026-07-04, pero no se habían registrado acá (deuda saldada en R1). Detalle de decisiones en PLAN.md → "Decisiones de implementación tomadas (Fases A–G)".
+
+**Hecho:**
+- **A** — Esquema contrato+entregas (`pago_entregas`), caja (`turnos_caja`, `movimientos_caja`), `leads.email`, `pagos.nota`; reglas puras `deuda.ts`, `reglas-caja.ts`, `mensajes.ts`; permiso `interesados` y `puedeCorregirContratos` (migraciones 0006/0007 con backfill).
+- **B** — Pagos mixtos (efectivo+transferencia) y parciales: el pago parcial renueva el vencimiento pero deja al alumno deudor con saldo visible; "completar deuda"; la fecha de inicio del contrato (retro-datable) manda sobre el vencimiento; ingresos del dashboard por entregas.
+- **C** — Caja por turnos: apertura con efectivo inicial, resumen en vivo derivado, egresos, cierre con nota e historial; widget en Inicio.
+- **D** — "Deudores que vienen hoy" en el Inicio de la secretaria, por disciplina, con WhatsApp.
+- **E** — Sección Interesados (secretaria+admin): captura de mostrador + WhatsApp con mensaje prellenado configurable; KPI en Inicio; email en CRM y API v1.
+- **F** — Correcciones de contratos solo admin: editar vencimiento/fecha con motivo, borrar contrato con sus entregas.
+- **G** — Alta encadenada de suscripciones (alumno nuevo → suscribir → "¿otra?").
+- Además: deploy inicial completado (migraciones + usuarios admin reales en Neon), favicon con el logo, sedes renombradas a "Sede SQ" y "Sede LS".
+
 ## 2026-07-04 — Fase 7: API pública v1
 
 **Hecho:**

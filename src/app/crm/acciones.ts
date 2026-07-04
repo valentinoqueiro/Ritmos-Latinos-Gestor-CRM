@@ -5,11 +5,15 @@ import { redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
-import { alumnos, horarios, leads } from "@/db/schema";
+import { alumnos, horarios, leadActividades, leads } from "@/db/schema";
 import { exigirSeccion } from "@/lib/auth/guards";
 import { ErrorAutorizacion } from "@/lib/auth/permissions";
-import { hoyISO } from "@/lib/fechas";
-import { puedeTransicionar, type EstadoLead } from "@/lib/reglas-leads";
+import { formatoFecha, hoyISO } from "@/lib/fechas";
+import {
+  ETIQUETA_ESTADO_LEAD,
+  puedeTransicionar,
+  type EstadoLead,
+} from "@/lib/reglas-leads";
 
 // CRM: SOLO admin (sección "crm"), cross-sede. Toda acción valida la
 // transición del pipeline en el servidor (src/lib/reglas-leads.ts).
@@ -32,6 +36,7 @@ async function avanzarEstado(
   leadId: number,
   destino: EstadoLead,
   extras: Partial<typeof leads.$inferInsert> = {},
+  opciones: { usuarioId?: number; detalle?: string } = {},
 ): Promise<EstadoAccion> {
   const lead = await cargarLead(leadId);
   if (!lead) return { error: "El lead no existe" };
@@ -40,10 +45,26 @@ async function avanzarEstado(
       error: `No se puede pasar de "${lead.estado}" a "${destino}"`,
     };
   }
-  await db
-    .update(leads)
-    .set({ estado: destino, actualizadoEn: new Date(), ...extras })
-    .where(eq(leads.id, leadId));
+  // etapaDesde alimenta el "hace cuánto está acá" y la alerta de lead frío;
+  // cada transición deja además su rastro en el historial de actividad.
+  await db.transaction(async (tx) => {
+    await tx
+      .update(leads)
+      .set({
+        estado: destino,
+        etapaDesde: new Date(),
+        actualizadoEn: new Date(),
+        ...extras,
+      })
+      .where(eq(leads.id, leadId));
+    await tx.insert(leadActividades).values({
+      leadId,
+      tipo: "sistema",
+      detalle:
+        opciones.detalle ?? `Pasó a ${ETIQUETA_ESTADO_LEAD[destino]}`,
+      registradoPorId: opciones.usuarioId ?? null,
+    });
+  });
   revalidatePath("/crm");
   revalidatePath("/dashboard");
   return { ok: true };
@@ -99,9 +120,9 @@ export async function crearLead(
 // --- Avances del pipeline ---------------------------------------------------------
 
 export async function marcarContactado(formData: FormData): Promise<void> {
-  await exigirSeccion("crm");
+  const usuario = await exigirSeccion("crm");
   const leadId = z.coerce.number().int().positive().parse(formData.get("leadId"));
-  await avanzarEstado(leadId, "contactado");
+  await avanzarEstado(leadId, "contactado", {}, { usuarioId: usuario.id });
 }
 
 export async function agendarPrueba(
@@ -109,7 +130,7 @@ export async function agendarPrueba(
   formData: FormData,
 ): Promise<EstadoAccion> {
   try {
-    await exigirSeccion("crm");
+    const usuario = await exigirSeccion("crm");
     const leadId = z.coerce.number().int().positive().parse(formData.get("leadId"));
     const horarioId = z.coerce
       .number({ message: "Elegí el horario de la clase de prueba" })
@@ -127,10 +148,15 @@ export async function agendarPrueba(
     });
     if (!horario) return { error: "El horario no existe" };
 
-    return await avanzarEstado(leadId, "prueba_agendada", {
-      pruebaFecha: fecha,
-      pruebaHorarioId: horarioId,
-    });
+    return await avanzarEstado(
+      leadId,
+      "prueba_agendada",
+      { pruebaFecha: fecha, pruebaHorarioId: horarioId },
+      {
+        usuarioId: usuario.id,
+        detalle: `Clase de prueba agendada para el ${formatoFecha(fecha)}`,
+      },
+    );
   } catch (error) {
     return mensajeDeError(error);
   }
@@ -141,7 +167,7 @@ export async function marcarPerdido(
   formData: FormData,
 ): Promise<EstadoAccion> {
   try {
-    await exigirSeccion("crm");
+    const usuario = await exigirSeccion("crm");
     const leadId = z.coerce.number().int().positive().parse(formData.get("leadId"));
     // El motivo es obligatorio al perder (PLAN.md).
     const motivo = z
@@ -149,7 +175,12 @@ export async function marcarPerdido(
       .trim()
       .min(2, "Contá el motivo de la pérdida")
       .parse(formData.get("motivo"));
-    return await avanzarEstado(leadId, "perdido", { motivoPerdida: motivo });
+    return await avanzarEstado(
+      leadId,
+      "perdido",
+      { motivoPerdida: motivo },
+      { usuarioId: usuario.id, detalle: `Perdido: ${motivo}` },
+    );
   } catch (error) {
     return mensajeDeError(error);
   }
@@ -187,7 +218,7 @@ export async function convertirLead(
 ): Promise<EstadoAccion> {
   let alumnoId: number;
   try {
-    await exigirSeccion("crm");
+    const usuario = await exigirSeccion("crm");
     const datos = esquemaConversion.parse({
       leadId: formData.get("leadId"),
       sedeId: formData.get("sedeId"),
@@ -222,9 +253,16 @@ export async function convertirLead(
         .set({
           estado: "convertido",
           alumnoId: alumno.id,
+          etapaDesde: new Date(),
           actualizadoEn: new Date(),
         })
         .where(eq(leads.id, leadId));
+      await tx.insert(leadActividades).values({
+        leadId,
+        tipo: "sistema",
+        detalle: `Convertido en alumno: ${ficha.nombre} ${ficha.apellido}`,
+        registradoPorId: usuario.id,
+      });
       return alumno.id;
     });
     revalidatePath("/crm");

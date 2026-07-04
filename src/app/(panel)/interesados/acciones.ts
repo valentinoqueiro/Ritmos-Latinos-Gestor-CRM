@@ -1,10 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
-import { leads } from "@/db/schema";
+import { leads, origenesNegocio } from "@/db/schema";
 import { exigirSeccion } from "@/lib/auth/guards";
 import { autorizarSede, ErrorAutorizacion } from "@/lib/auth/permissions";
 import { esEstadoFinal, ETIQUETA_ESTADO_LEAD } from "@/lib/reglas-leads";
@@ -74,6 +74,12 @@ export async function crearInteresado(
       };
     }
 
+    // La captura del mostrador se clasifica sola en el catálogo de orígenes
+    // de negocio (rediseño CRM R1); si el origen no existiera, queda null.
+    const origenMostrador = await db.query.origenesNegocio.findFirst({
+      where: eq(origenesNegocio.nombre, "Mostrador"),
+    });
+
     await db.insert(leads).values({
       nombre: datos.nombre,
       telefono: datos.telefono,
@@ -82,6 +88,7 @@ export async function crearInteresado(
       sedeInteresId: datos.sedeId,
       origen: "manual",
       fuente: "mostrador",
+      origenNegocioId: origenMostrador?.id ?? null,
     });
     revalidatePath("/interesados");
     revalidatePath("/inicio");
