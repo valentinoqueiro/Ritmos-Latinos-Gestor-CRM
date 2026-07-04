@@ -22,7 +22,7 @@ export default async function PanelLayout({
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className="sticky top-0 z-20 bg-tinta text-white">
+      <header className="sticky top-0 z-20 border-b border-white/10 bg-tinta/90 text-white backdrop-blur-xl">
         <div className="mx-auto flex h-14 w-full max-w-[1600px] items-center gap-3 px-4 md:px-6">
           <Link href="/inicio" className="flex items-center gap-2.5">
             <Image
@@ -33,7 +33,7 @@ export default async function PanelLayout({
               priority
               className="h-7 w-auto"
             />
-            <p className="titulo-display text-xl leading-none">
+            <p className="titulo-display hidden text-xl leading-none sm:block">
               Ritmos <span className="text-marca">Latinos</span>
             </p>
           </Link>
@@ -43,10 +43,10 @@ export default async function PanelLayout({
             {puedeAcceder(usuario.rol, "crm") ? (
               <Link
                 href="/crm"
-                className="flex items-center gap-1.5 rounded-lg bg-marca px-3 py-1.5 text-xs font-semibold text-white shadow-boton transition hover:bg-marca-oscuro"
+                className="flex items-center gap-1.5 rounded-full bg-marca px-3 py-1.5 text-xs font-semibold text-white shadow-boton transition hover:bg-marca-oscuro"
               >
                 <IconoCrm className="h-4 w-4" />
-                Abrir CRM
+                <span className="hidden sm:inline">Abrir&nbsp;</span>CRM
               </Link>
             ) : null}
 
@@ -83,7 +83,7 @@ export default async function PanelLayout({
 
       <div className="mx-auto flex w-full max-w-[1600px] flex-1">
         <NavLateral items={items} />
-        <main className="min-w-0 flex-1 px-4 pb-24 pt-5 md:px-6 md:pb-10 lg:px-8">
+        <main className="min-w-0 flex-1 px-4 pb-32 pt-5 md:px-6 md:pb-10 lg:px-8">
           {children}
         </main>
       </div>

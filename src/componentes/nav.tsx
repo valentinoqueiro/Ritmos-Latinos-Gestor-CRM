@@ -45,10 +45,15 @@ export function BarraInferior({ items }: { items: ItemNav[] }) {
   const desborda = items.length > MAX_ITEMS_BARRA;
   const visibles = desborda ? items.slice(0, MAX_ITEMS_BARRA - 1) : items;
 
+  // Barra flotante estilo "liquid glass" (iOS): pastilla translúcida con
+  // blur, despegada de los bordes y por encima del safe area.
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-borde bg-superficie/95 backdrop-blur md:hidden">
+    <nav
+      className="fixed inset-x-3 z-20 md:hidden"
+      style={{ bottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
+    >
       <ul
-        className="mx-auto grid max-w-md"
+        className="vidrio mx-auto grid max-w-md rounded-[1.75rem] p-1.5"
         style={{
           gridTemplateColumns: `repeat(${visibles.length + (desborda ? 1 : 0)}, 1fr)`,
         }}
@@ -59,8 +64,10 @@ export function BarraInferior({ items }: { items: ItemNav[] }) {
             <li key={item.href}>
               <Link
                 href={item.href}
-                className={`flex flex-col items-center gap-1 py-2.5 pb-[calc(0.625rem+env(safe-area-inset-bottom))] text-[11px] font-medium ${
-                  activo ? "text-marca" : "text-tinta-suave"
+                className={`flex flex-col items-center gap-0.5 rounded-3xl py-2 text-[10px] font-semibold transition-colors ${
+                  activo
+                    ? "bg-marca/10 text-marca"
+                    : "text-tinta-suave active:bg-tinta/5"
                 }`}
               >
                 <IconoNavPorNombre nombre={item.icono} className="h-6 w-6" />
@@ -73,8 +80,10 @@ export function BarraInferior({ items }: { items: ItemNav[] }) {
           <li>
             <Link
               href="/mas"
-              className={`flex flex-col items-center gap-1 py-2.5 pb-[calc(0.625rem+env(safe-area-inset-bottom))] text-[11px] font-medium ${
-                rutaActual.startsWith("/mas") ? "text-marca" : "text-tinta-suave"
+              className={`flex flex-col items-center gap-0.5 rounded-3xl py-2 text-[10px] font-semibold transition-colors ${
+                rutaActual.startsWith("/mas")
+                  ? "bg-marca/10 text-marca"
+                  : "text-tinta-suave active:bg-tinta/5"
               }`}
             >
               <IconoMas className="h-6 w-6" />

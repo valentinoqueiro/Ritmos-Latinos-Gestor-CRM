@@ -40,32 +40,57 @@ function etiquetaMes(mes: string): string {
     .replace(".", "");
 }
 
-function BarraOcupacion({ horario }: { horario: HorarioConOcupacion }) {
-  if (horario.cupo === null) {
-    return (
-      <span className="text-xs font-semibold text-tinta-suave">
-        {horario.inscriptos} inscriptos
-      </span>
-    );
-  }
-  const proporcion = Math.min(1, horario.inscriptos / horario.cupo);
-  const lleno = estaLleno(horario);
-  const color = lleno ? "#c32935" : proporcion >= 0.8 ? "#b7791f" : "#1d8a4e";
+// Fila de ocupación: la info arriba (truncada, nunca se desborda) y la barra
+// ocupando todo el ancho abajo, con el número al final.
+function FilaOcupacion({ horario }: { horario: HorarioConOcupacion }) {
+  const proporcion =
+    horario.cupo === null
+      ? null
+      : Math.min(1, horario.inscriptos / horario.cupo);
+  const lleno = horario.cupo !== null && estaLleno(horario);
+  const color =
+    lleno ? "#c32935" : (proporcion ?? 0) >= 0.8 ? "#c2410c" : "#1d8a4e";
+
   return (
-    <span className="flex items-center gap-2">
-      <span
-        aria-hidden
-        className="h-2 w-24 overflow-hidden rounded-full bg-borde"
-      >
-        <span
-          className="block h-full rounded-full"
-          style={{ width: `${proporcion * 100}%`, backgroundColor: color }}
-        />
-      </span>
-      <span className="w-12 text-right text-xs font-semibold tabular-nums">
-        {horario.inscriptos}/{horario.cupo}
-      </span>
-    </span>
+    <li className="rounded-xl bg-fondo/70 px-3 py-2.5">
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="min-w-0 truncate text-sm font-medium">
+          {horario.disciplina}
+          {horario.nota ? (
+            <span className="text-tinta-suave"> · {horario.nota}</span>
+          ) : null}
+        </p>
+        <p className="shrink-0 text-xs font-medium text-tinta-suave tabular-nums">
+          {DIAS[horario.diaSemana].slice(0, 3)} {formatoHora(horario.hora)}
+        </p>
+      </div>
+      <div className="mt-1.5 flex items-center gap-2.5">
+        {proporcion === null ? (
+          <span className="text-xs font-semibold text-tinta-suave">
+            {horario.inscriptos} inscriptos · sin cupo
+          </span>
+        ) : (
+          <>
+            <span
+              aria-hidden
+              className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-borde"
+            >
+              <span
+                className="block h-full rounded-full"
+                style={{ width: `${proporcion * 100}%`, backgroundColor: color }}
+              />
+            </span>
+            <span
+              className="shrink-0 text-xs font-semibold tabular-nums"
+              style={{ color }}
+            >
+              {horario.inscriptos}/{horario.cupo}
+              {lleno ? " · Lleno" : ""}
+            </span>
+          </>
+        )}
+      </div>
+    </li>
   );
 }
 
@@ -257,26 +282,11 @@ export default async function PaginaDashboard({
         </p>
         <div className="mt-3 grid gap-4 lg:grid-cols-2">
           {alcance.map((sede, i) => (
-            <div
-              key={sede.id}
-              className="tarjeta p-4"
-            >
+            <div key={sede.id} className="tarjeta p-4">
               <h3 className="text-sm font-semibold">{sede.nombre}</h3>
-              <ul className="mt-2 grid gap-1.5">
+              <ul className="mt-3 grid gap-2">
                 {ocupacionPorSede[i].map((h) => (
-                  <li
-                    key={h.id}
-                    className="flex items-center justify-between gap-3 text-sm"
-                  >
-                    <span className="min-w-0 truncate">
-                      {h.disciplina} · {DIAS[h.diaSemana].slice(0, 3)}{" "}
-                      {formatoHora(h.hora)}
-                      {h.nota ? (
-                        <span className="text-tinta-suave"> ({h.nota})</span>
-                      ) : null}
-                    </span>
-                    <BarraOcupacion horario={h} />
-                  </li>
+                  <FilaOcupacion key={h.id} horario={h} />
                 ))}
               </ul>
             </div>

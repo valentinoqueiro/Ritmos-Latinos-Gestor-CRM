@@ -66,14 +66,14 @@ export function GraficoLineas({
                 x2={ANCHO - MARGEN.der}
                 y1={y(v)}
                 y2={y(v)}
-                stroke="#e7e0dc"
+                stroke="#e4e4e9"
                 strokeWidth="1"
               />
               <text
                 x={ANCHO - MARGEN.der + 6}
                 y={y(v) + 4}
                 fontSize="11"
-                fill="#4d4749"
+                fill="#56565c"
               >
                 $ {formatoCompacto(v)}
               </text>
@@ -85,7 +85,7 @@ export function GraficoLineas({
               x2={ANCHO - MARGEN.der}
               y1={y(0)}
               y2={y(0)}
-              stroke="#4d4749"
+              stroke="#56565c"
               strokeWidth="1"
               strokeDasharray="3 3"
             />
@@ -98,7 +98,7 @@ export function GraficoLineas({
               y={ALTO - 8}
               fontSize="11"
               textAnchor="middle"
-              fill="#4d4749"
+              fill="#56565c"
             >
               {e}
             </text>
