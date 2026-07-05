@@ -3,6 +3,7 @@ import Link from "next/link";
 import { requerirSeccion } from "@/lib/auth/guards";
 import { IconoSalir } from "@/componentes/iconos";
 import { salir } from "../login/actions";
+import { PestanasCrm } from "./pestanas";
 
 // El CRM es una app aparte del gestor: shell propio, sin la navegación del
 // panel. Se entra con el botón "Abrir CRM" del header y se vuelve desde acá.
@@ -29,9 +30,7 @@ export default async function CrmLayout({
               CRM <span className="text-marca">Ritmos</span>
             </p>
           </Link>
-          <span className="hidden rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide text-white/70 sm:inline">
-            Interesados
-          </span>
+          <PestanasCrm />
 
           <div className="ml-auto flex items-center gap-2">
             <Link

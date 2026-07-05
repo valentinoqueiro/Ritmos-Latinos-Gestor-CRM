@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { eq } from "drizzle-orm";
+import { db } from "@/db";
+import { leadDisciplinas, leads } from "@/db/schema";
 import { requerirSeccion } from "@/lib/auth/guards";
 import {
   DIAS,
@@ -41,6 +44,25 @@ export default async function PaginaSuscribir({
     ? (planes.find((p) => p.id === Number(planParam)) ?? null)
     : null;
 
+  // Si el alumno vino de un lead del CRM, sus disciplinas de interés
+  // sugieren el plan: van primero y marcadas (rediseño CRM R4).
+  const leadVinculado = await db.query.leads.findFirst({
+    where: eq(leads.alumnoId, alumno.id),
+  });
+  const interesesLead = leadVinculado
+    ? await db
+        .select({ disciplinaId: leadDisciplinas.disciplinaId })
+        .from(leadDisciplinas)
+        .where(eq(leadDisciplinas.leadId, leadVinculado.id))
+    : [];
+  const idsDeInteres = new Set(interesesLead.map((i) => i.disciplinaId));
+  const esSugerido = (plan: (typeof planes)[number]) =>
+    plan.disciplinas.some((d) => idsDeInteres.has(d.id));
+  const planesOrdenados =
+    idsDeInteres.size === 0
+      ? planes
+      : [...planes].sort((a, b) => Number(esSugerido(b)) - Number(esSugerido(a)));
+
   return (
     <div>
       {creada ? (
@@ -77,14 +99,23 @@ export default async function PaginaSuscribir({
             </div>
           ) : (
             <ul className="mt-6 grid gap-3 sm:grid-cols-2">
-              {planes.map((plan) => (
+              {planesOrdenados.map((plan) => (
                 <li key={plan.id}>
                   <Link
                     href={`/alumnos/${alumno.id}/suscribir?plan=${plan.id}`}
-                    className="block tarjeta p-4 transition hover:border-marca"
+                    className={`block tarjeta p-4 transition hover:border-marca ${
+                      esSugerido(plan) ? "border-marca ring-1 ring-marca/30" : ""
+                    }`}
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <p className="font-semibold">{plan.nombre}</p>
+                      <p className="font-semibold">
+                        {plan.nombre}
+                        {esSugerido(plan) ? (
+                          <span className="ml-2 rounded-full bg-marca-suave px-2 py-0.5 text-[11px] font-semibold text-marca-oscuro">
+                            ★ le interesaba
+                          </span>
+                        ) : null}
+                      </p>
                       <p className="titulo-display text-2xl text-marca">
                         {plan.precioVigente
                           ? formatoMonto(plan.precioVigente)

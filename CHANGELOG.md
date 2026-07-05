@@ -2,6 +2,17 @@
 
 > Registro de cambios del sistema de gestión. Cada sesión de trabajo agrega su entrada al cierre: fecha, fase, qué se hizo, decisiones tomadas y pendientes que quedaron.
 
+## 2026-07-04 — Rediseño CRM · R4: retención «A recontactar» + conversión enriquecida
+
+**Hecho:**
+- Pestañas en el shell del CRM: **Pipeline** y **A recontactar** (la retención vive dentro del CRM, no aparte).
+- `/crm/recontactar` (solo admin): lista accionable de alumnos según la señal de cuota — vencidas recientes (menos de 10 días o nunca pagaron), por vencer y «dejaron de venir» (abandonos) — con plan, sede, fecha, saldo de pagos parciales y botón **«Recontactar por WhatsApp»** con mensaje prellenado y nombre de pila. Reutiliza la misma lógica derivada de `cobros.ts` que usan la secretaria y el dashboard; NO es un segundo pipeline (sin etapas).
+- **Plantilla de recontacto propia** (separada de la de interesados, otro tono), editable por el admin en Configuración con `{nombre}`; el cambio se refleja al instante en los links.
+- **Conversión enriquecida**: al convertir un lead, la pantalla de suscripción ordena primero y marca con «★ le interesaba» los planes que incluyen sus disciplinas de interés.
+- Verificado e2e: Inicio de la secretaria idéntico (sección por sección) y bloqueada de `/crm/recontactar` por URL; grupos con los datos del seed; wa.me con plantilla propia; edición de plantilla reflejada; conversión de un lead con Zumba sugiere el plan Zumba primero.
+
+**Nota de alcance:** los deudores de pagos parciales con cuota vigente no aparecen en «A recontactar» (su cuota está al día); siguen visibles en Cobros («pagos parciales a completar») y como badge «debe $X» cuando además vencen.
+
 ## 2026-07-04 — Rediseño CRM · R3: captura con disciplinas + API v1 (y fix de acciones colgadas)
 
 **Hecho:**

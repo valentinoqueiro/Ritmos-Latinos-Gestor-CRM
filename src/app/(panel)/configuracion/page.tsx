@@ -7,7 +7,9 @@ import { requerirSeccion } from "@/lib/auth/guards";
 import { umbralPorVencer } from "@/lib/cobros";
 import {
   CLAVE_MENSAJE_INTERESADOS,
+  CLAVE_MENSAJE_RECONTACTO,
   MENSAJE_INTERESADOS_DEFAULT,
+  MENSAJE_RECONTACTO_DEFAULT,
 } from "@/lib/mensajes";
 import {
   CLAVE_UMBRAL_LEAD_FRIO,
@@ -19,6 +21,7 @@ import { EncabezadoSeccion } from "@/componentes/encabezado";
 import { FormAccion } from "@/componentes/form-accion";
 import {
   guardarMensajeInteresados,
+  guardarMensajeRecontacto,
   guardarUmbral,
   guardarUmbralLeadFrio,
 } from "./acciones";
@@ -35,7 +38,15 @@ const ETIQUETA_ROL: Record<string, string> = {
 
 export default async function PaginaConfiguracion() {
   const usuario = await requerirSeccion("configuracion");
-  const [sedes, listaUsuarios, umbral, categorias, filaMensaje, filaUmbralFrio] =
+  const [
+    sedes,
+    listaUsuarios,
+    umbral,
+    categorias,
+    filaMensaje,
+    filaUmbralFrio,
+    filaRecontacto,
+  ] =
     await Promise.all([
       sedesVisibles(usuario),
       db.query.usuarios.findMany({ orderBy: asc(usuarios.nombre) }),
@@ -49,9 +60,13 @@ export default async function PaginaConfiguracion() {
       db.query.configuracion.findFirst({
         where: eq(configuracion.clave, CLAVE_UMBRAL_LEAD_FRIO),
       }),
+      db.query.configuracion.findFirst({
+        where: eq(configuracion.clave, CLAVE_MENSAJE_RECONTACTO),
+      }),
     ]);
   const mensajeInteresados = filaMensaje?.valor ?? MENSAJE_INTERESADOS_DEFAULT;
   const umbralFrio = Number(filaUmbralFrio?.valor) || UMBRAL_LEAD_FRIO_DEFAULT;
+  const mensajeRecontacto = filaRecontacto?.valor ?? MENSAJE_RECONTACTO_DEFAULT;
   const nombreSede = (sedeId: number | null) =>
     sedes.find((s) => s.id === sedeId)?.nombre ?? "Todas";
 
@@ -199,6 +214,32 @@ export default async function PaginaConfiguracion() {
               required
               rows={4}
               defaultValue={mensajeInteresados}
+              className={`${claseInput} h-auto py-2`}
+            />
+          </Campo>
+        </FormAccion>
+      </section>
+
+      <section className="mt-8 max-w-md tarjeta p-4">
+        <h2 className="font-semibold">Mensaje de recontacto (CRM)</h2>
+        <p className="mt-1 text-sm text-tinta-suave">
+          Lo que se manda por WhatsApp desde «A recontactar» del CRM a los
+          alumnos que se están alejando. Usá{" "}
+          <code className="rounded bg-fondo px-1">{"{nombre}"}</code> para el
+          nombre.
+        </p>
+        <FormAccion
+          accion={guardarMensajeRecontacto}
+          textoBoton="Guardar mensaje"
+          variante="secundario"
+          className="mt-3"
+        >
+          <Campo etiqueta="Mensaje">
+            <textarea
+              name="mensaje"
+              required
+              rows={4}
+              defaultValue={mensajeRecontacto}
               className={`${claseInput} h-auto py-2`}
             />
           </Campo>

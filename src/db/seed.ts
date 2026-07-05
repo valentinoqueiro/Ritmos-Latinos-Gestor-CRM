@@ -16,7 +16,9 @@ import {
 import { hashearPassword } from "../lib/auth/password";
 import {
   CLAVE_MENSAJE_INTERESADOS,
+  CLAVE_MENSAJE_RECONTACTO,
   MENSAJE_INTERESADOS_DEFAULT,
+  MENSAJE_RECONTACTO_DEFAULT,
 } from "../lib/mensajes";
 import { calcularVencimiento } from "../lib/vencimientos";
 import { hoyISO } from "../lib/fechas";
@@ -845,13 +847,13 @@ async function main() {
     .set({ etapaDesde: new Date(Date.now() - 5 * 86_400_000) })
     .where(eq(leads.telefono, "381 555 3001"));
 
-  // Plantilla del mensaje de WhatsApp a interesados (editable en Configuración).
+  // Plantillas de WhatsApp (editables en Configuración): interesados y recontacto.
   await db
     .insert(configuracion)
-    .values({
-      clave: CLAVE_MENSAJE_INTERESADOS,
-      valor: MENSAJE_INTERESADOS_DEFAULT,
-    })
+    .values([
+      { clave: CLAVE_MENSAJE_INTERESADOS, valor: MENSAJE_INTERESADOS_DEFAULT },
+      { clave: CLAVE_MENSAJE_RECONTACTO, valor: MENSAJE_RECONTACTO_DEFAULT },
+    ])
     .onConflictDoNothing();
 
   console.log("Seed listo.");
