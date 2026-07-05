@@ -29,7 +29,7 @@ export type LeadDeTablero = {
   id: number;
   nombre: string;
   estado: EstadoLead;
-  disciplinas: { nombre: string; sede: string }[];
+  disciplinas: { id: number; nombre: string; sede: string }[];
   origen: string | null;
   viaApi: string | null;
   diasEnEtapa: number;
@@ -81,7 +81,7 @@ function ContenidoTarjeta({ lead }: { lead: LeadDeTablero }) {
         ) : (
           lead.disciplinas.map((d) => (
             <span
-              key={`${d.nombre}-${d.sede}`}
+              key={d.id}
               className="rounded-full bg-fondo px-2 py-0.5 text-xs font-medium text-tinta-suave ring-1 ring-borde"
               title={`Sede ${d.sede}`}
             >
@@ -289,6 +289,78 @@ type Pendiente =
 
 // --- Tablero -------------------------------------------------------------------
 
+type OpcionHorario = { id: number; disciplinaId: number; etiqueta: string };
+type OpcionDisciplina = { id: number; etiqueta: string };
+
+/**
+ * Elegir la clase de prueba en dos pasos: disciplina primero (las de interés
+ * del lead arriba y marcadas), horarios filtrados después. Sin esto el
+ * desplegable tiraba TODOS los horarios de todas las sedes de una.
+ */
+function CamposClaseDePrueba({
+  lead,
+  opcionesDisciplina,
+  opcionesHorario,
+  hoy,
+}: {
+  lead: LeadDeTablero;
+  opcionesDisciplina: OpcionDisciplina[];
+  opcionesHorario: OpcionHorario[];
+  hoy: string;
+}) {
+  const leInteresa = new Set(lead.disciplinas.map((d) => d.id));
+  const ordenadas = [...opcionesDisciplina].sort(
+    (a, b) => Number(leInteresa.has(b.id)) - Number(leInteresa.has(a.id)),
+  );
+  const [disciplinaId, setDisciplinaId] = useState<number | null>(
+    lead.disciplinas[0]?.id ?? null,
+  );
+  const clases = opcionesHorario.filter((h) => h.disciplinaId === disciplinaId);
+
+  return (
+    <>
+      <Campo etiqueta="Disciplina">
+        <Select
+          value={disciplinaId ?? ""}
+          onChange={(e) =>
+            setDisciplinaId(e.target.value === "" ? null : Number(e.target.value))
+          }
+          required
+        >
+          <option value="" disabled>
+            Elegí la disciplina
+          </option>
+          {ordenadas.map((d) => (
+            <option key={d.id} value={d.id}>
+              {d.etiqueta}
+              {leInteresa.has(d.id) ? " — le interesaba" : ""}
+            </option>
+          ))}
+        </Select>
+      </Campo>
+      <Campo etiqueta="Clase">
+        {/* key: al cambiar de disciplina se descarta la elección anterior */}
+        <Select name="horarioId" key={disciplinaId ?? "sin"} required disabled={disciplinaId === null}>
+          {disciplinaId === null ? (
+            <option value="">Primero elegí la disciplina</option>
+          ) : clases.length === 0 ? (
+            <option value="">Esta disciplina no tiene horarios activos</option>
+          ) : (
+            clases.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.etiqueta}
+              </option>
+            ))
+          )}
+        </Select>
+      </Campo>
+      <Campo etiqueta="Fecha">
+        <Input name="fecha" type="date" required min={hoy} />
+      </Campo>
+    </>
+  );
+}
+
 export function TableroKanban({
   tarjetas,
   umbralFrio,
@@ -300,8 +372,8 @@ export function TableroKanban({
   tarjetas: LeadDeTablero[];
   umbralFrio: number;
   hoy: string;
-  opcionesHorario: { id: number; etiqueta: string }[];
-  opcionesDisciplina: { id: number; etiqueta: string }[];
+  opcionesHorario: OpcionHorario[];
+  opcionesDisciplina: OpcionDisciplina[];
   opcionesOrigen: { id: number; nombre: string }[];
 }) {
   const router = useRouter();
@@ -509,18 +581,12 @@ export function TableroKanban({
             alCompletar={() => cerrarModal(true)}
           >
             <input type="hidden" name="leadId" value={pendiente.lead.id} />
-            <Campo etiqueta="Clase">
-              <Select name="horarioId" required>
-                {opcionesHorario.map((o) => (
-                  <option key={o.id} value={o.id}>
-                    {o.etiqueta}
-                  </option>
-                ))}
-              </Select>
-            </Campo>
-            <Campo etiqueta="Fecha">
-              <Input name="fecha" type="date" required min={hoy} />
-            </Campo>
+            <CamposClaseDePrueba
+              lead={pendiente.lead}
+              opcionesDisciplina={opcionesDisciplina}
+              opcionesHorario={opcionesHorario}
+              hoy={hoy}
+            />
           </FormAccion>
         </Modal>
       ) : null}

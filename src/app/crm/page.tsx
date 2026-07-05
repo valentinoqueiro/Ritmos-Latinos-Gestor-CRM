@@ -53,6 +53,7 @@ export default async function PaginaCrm() {
           diaSemana: horarios.diaSemana,
           hora: horarios.hora,
           nota: horarios.nota,
+          disciplinaId: horarios.disciplinaId,
           disciplina: disciplinas.nombre,
         })
         .from(horarios)
@@ -106,6 +107,7 @@ export default async function PaginaCrm() {
       nombre: lead.nombre,
       estado: lead.estado,
       disciplinas: intereses.map((i) => ({
+        id: i.disciplinaId,
         nombre: i.disciplina,
         sede: nombreSede(i.sedeId),
       })),
@@ -123,11 +125,14 @@ export default async function PaginaCrm() {
     };
   });
 
+  // La etiqueta no repite la disciplina: en el modal de prueba el horario se
+  // elige DESPUÉS de la disciplina (que ya trae su sede), filtrado por ella.
   const opcionesHorario = listaHorarios.map((h) => ({
     id: h.id,
-    etiqueta: `${h.disciplina} · ${DIAS[h.diaSemana]} ${formatoHora(h.hora)}${
+    disciplinaId: h.disciplinaId,
+    etiqueta: `${DIAS[h.diaSemana]} ${formatoHora(h.hora)}${
       h.nota ? ` (${h.nota})` : ""
-    } · ${nombreSede(h.sedeId)}`,
+    }`,
   }));
 
   return (

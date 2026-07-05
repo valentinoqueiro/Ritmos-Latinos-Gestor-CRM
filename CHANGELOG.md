@@ -2,6 +2,10 @@
 
 > Registro de cambios del sistema de gestión. Cada sesión de trabajo agrega su entrada al cierre: fecha, fase, qué se hizo, decisiones tomadas y pendientes que quedaron.
 
+## 2026-07-05 — Mejora CRM: clase de prueba en dos pasos (disciplina → clase)
+
+**Hecho:** en el modal «Clase de prueba» del kanban, el desplegable tiraba los 39 horarios de todas las disciplinas y sedes de una. Ahora se elige primero la **disciplina** (las de interés del lead aparecen arriba, marcadas «— le interesaba», y la primera queda preseleccionada) y el desplegable de clases se filtra a esa disciplina. Lead sin disciplinas: selector vacío («Elegí la disciplina») con las clases deshabilitadas hasta elegir. Sin cambios de modelo ni de la acción (`agendarPrueba` sigue recibiendo horario + fecha). Verificado e2e en build de producción: preselección por interés, refiltrado al cambiar disciplina, agendado real (lead → prueba agendada con horario de la disciplina correcta) y caso sin intereses.
+
 ## 2026-07-05 — Fix: sesiones huérfanas rompían el pipeline del CRM («Algo salió mal» al mover cards)
 
 **Causa raíz (capturada en vivo de los logs de runtime de Vercel, tras un primer diagnóstico erróneo que la atribuía al bug de Neon de abajo):** la cookie de sesión (JWT de 30 días) del cliente estaba firmada con un **id de usuario que ya no existe** en la base de producción (los usuarios se recrearon después del deploy inicial y los ids cambiaron). `obtenerSesion` solo verificaba la firma del token — nunca que el usuario siguiera existiendo — así que el panel renderizaba normal, pero TODA transición del pipeline inserta en `lead_actividades` el `registrado_por_id` de la sesión y la FK a `usuarios` la rechazaba: `Key (registrado_por_id)=(3) is not present in table "usuarios"` → catch genérico → «Algo salió mal», el 100 % de las veces para ese navegador y nunca para sesiones nuevas. Crear leads sí funcionaba (no registra autor), por eso el bug parecía exclusivo del movimiento de cards.
