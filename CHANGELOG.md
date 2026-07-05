@@ -2,15 +2,19 @@
 
 > Registro de cambios del sistema de gestión. Cada sesión de trabajo agrega su entrada al cierre: fecha, fase, qué se hizo, decisiones tomadas y pendientes que quedaron.
 
-## 2026-07-05 — Diagnóstico: mover cards del kanban en producción (sin cambios de código)
+## 2026-07-05 — Fix: sesiones huérfanas rompían el pipeline del CRM («Algo salió mal» al mover cards)
 
-**Investigado:** el reporte «mover una card del CRM falla siempre con "Algo salió mal"». Conclusión: **era el mismo bug de conexión muerta de Neon** (fix del 2026-07-04, abajo), no un bug propio del kanban. Evidencia:
-- Esquema de Neon 100 % sincronizado (9/9 migraciones, tablas y enums idénticos a los del repo); el núcleo de `avanzarEstado` (findFirst + transacción update+insert) ejecuta perfecto contra Neon desde local.
-- Reproducción real en producción (usuario admin y lead descartables, borrados al terminar): el movimiento anduvo tanto en caliente («Mover ▾») como en la **prueba fría** — 13 min de inactividad total para que Neon suspenda el compute y luego drag & drop real: sin error, card movida, base actualizada, logs de runtime limpios.
-- Por qué se sentía «100 % de las veces» y no intermitente: mover una card es típicamente la PRIMERA acción tras abrir el CRM después de inactividad (pool con conexiones muertas, sin reintento pre-fix), y cada reintento del usuario podía caer en otro lambda congelado con su propio pool muerto. Las demás acciones se hacen navegando (conexión ya caliente) y por eso fallaban solo a veces.
-- Además hay una transición real del usuario que SÍ se concretó (lead «sandra» → contactado, 2026-07-05 01:46 UTC), incompatible con un bug estructural del movimiento.
+**Causa raíz (capturada en vivo de los logs de runtime de Vercel, tras un primer diagnóstico erróneo que la atribuía al bug de Neon de abajo):** la cookie de sesión (JWT de 30 días) del cliente estaba firmada con un **id de usuario que ya no existe** en la base de producción (los usuarios se recrearon después del deploy inicial y los ids cambiaron). `obtenerSesion` solo verificaba la firma del token — nunca que el usuario siguiera existiendo — así que el panel renderizaba normal, pero TODA transición del pipeline inserta en `lead_actividades` el `registrado_por_id` de la sesión y la FK a `usuarios` la rechazaba: `Key (registrado_por_id)=(3) is not present in table "usuarios"` → catch genérico → «Algo salió mal», el 100 % de las veces para ese navegador y nunca para sesiones nuevas. Crear leads sí funcionaba (no registra autor), por eso el bug parecía exclusivo del movimiento de cards.
 
-**Pendiente:** que el cliente re-pruebe mover cards en producción (el fix se deployó el 2026-07-05 ~02:45 UTC, después de sus últimos intentos). Si volviera a fallar: anotar la hora exacta y avisar enseguida — los logs de runtime de Vercel solo se pueden capturar en vivo.
+**Fix:**
+- `obtenerSesion` (src/lib/auth/session.ts) ahora **valida la sesión contra la base en cada request** (cacheado por request): usuario inexistente o desactivado ⇒ sesión nula ⇒ al login. Los datos vigentes (rol, sede, nombre) salen SIEMPRE de la base, no del token: un cambio de rol o una baja rigen al instante, no a los 30 días — de paso se cierra ese agujero de autorización.
+- Lógica pura testeable en `usuarioVigente` (permissions.ts) + 4 tests nuevos (126 en verde).
+- `COOKIE_SESION` se movió a `src/lib/auth/cookie.ts` (el proxy edge no puede importar un session.ts que ahora toca pg).
+- El redirect de conveniencia «/login con cookie ⇒ /» salió del proxy (con una cookie huérfana generaba un **loop infinito** /login ⇄ /, verificado) y vive en `login/page.tsx`, que valida la sesión completa contra la base.
+
+**Verificado e2e en build de producción:** cookie bien firmada de un usuario inexistente ⇒ /crm → /login (200, sin loop); login normal → mover card del kanban OK; usuario logueado que visita /login vuelve a su inicio. Diagnóstico intermedio documentado: esquema de Neon en sync (9/9 migraciones), el movimiento anduvo en producción con sesión fresca incluso en frío (13 min de suspend de Neon) — lo que delató que el problema era la sesión del navegador del cliente y no el servidor.
+
+**Para el cliente:** al entrar después de este deploy, el sistema lo va a mandar solo al login una única vez; con loguearse de nuevo queda resuelto para siempre.
 
 ## 2026-07-04 — Fix crítico: "Algo salió mal" por conexión muerta de Neon
 

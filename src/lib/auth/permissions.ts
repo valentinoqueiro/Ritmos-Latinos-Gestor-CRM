@@ -25,6 +25,39 @@ export type UsuarioSesion = {
   sedeId: number | null;
 };
 
+/**
+ * Fila de usuario tal como está HOY en la base (forma estructural para que
+ * este módulo siga puro, sin depender del esquema de drizzle).
+ */
+export type FilaUsuarioSesion = {
+  id: number;
+  nombre: string;
+  email: string;
+  rol: Rol;
+  sedeId: number | null;
+  activo: boolean;
+};
+
+/**
+ * La sesión vigente se arma SIEMPRE desde la base, nunca desde el token: la
+ * cookie (30 días) prueba la identidad, pero el usuario pudo ser borrado,
+ * desactivado o cambiado de rol/sede después de firmada. Bug real 2026-07-05:
+ * una cookie con un id que ya no existía en la base rompía toda acción que
+ * registra "quién lo hizo" (FK a usuarios) con el mensaje genérico.
+ */
+export function usuarioVigente(
+  fila: FilaUsuarioSesion | null | undefined,
+): UsuarioSesion | null {
+  if (!fila || !fila.activo) return null;
+  return {
+    id: fila.id,
+    nombre: fila.nombre,
+    email: fila.email,
+    rol: fila.rol,
+    sedeId: fila.sedeId,
+  };
+}
+
 const ACCESOS: Record<Rol, ReadonlySet<Seccion>> = {
   secretaria: new Set(["operativa", "interesados"]),
   admin: new Set([

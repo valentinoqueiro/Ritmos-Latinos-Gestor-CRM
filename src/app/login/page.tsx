@@ -1,10 +1,18 @@
 import type { Metadata } from "next";
 import Image from "next/image";
+import { redirect } from "next/navigation";
+import { rutaInicial } from "@/lib/auth/guards";
+import { obtenerSesion } from "@/lib/auth/session";
 import { FormularioLogin } from "./formulario";
 
 export const metadata: Metadata = { title: "Ingresar" };
 
-export default function PaginaLogin() {
+export default async function PaginaLogin() {
+  // Sesión realmente vigente (validada contra la base): a su pantalla inicial.
+  // Con cookie inválida o huérfana se muestra el login para re-autenticarse
+  // (este chequeo NO puede vivir en el proxy: el edge no consulta la base).
+  const usuario = await obtenerSesion();
+  if (usuario) redirect(rutaInicial(usuario));
   return (
     <main className="flex min-h-dvh flex-col md:flex-row">
       {/* Franja de marca */}

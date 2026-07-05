@@ -1,10 +1,14 @@
 import "server-only";
 import { cache } from "react";
 import { cookies } from "next/headers";
-import type { UsuarioSesion } from "./permissions";
+import { eq } from "drizzle-orm";
+import { db } from "@/db";
+import { usuarios } from "@/db/schema";
+import { COOKIE_SESION } from "./cookie";
+import { usuarioVigente, type UsuarioSesion } from "./permissions";
 import { firmarToken, verificarToken } from "./token";
 
-export const COOKIE_SESION = "rl_sesion";
+export { COOKIE_SESION } from "./cookie";
 const DIAS_SESION = 30;
 
 function secreto(): string {
@@ -25,16 +29,23 @@ export async function crearSesion(usuario: UsuarioSesion): Promise<void> {
   });
 }
 
-// cache(): una sola verificación de JWT por request aunque layout y página
-// pidan la sesión cada uno. Además devuelve SIEMPRE el mismo objeto usuario,
-// lo que permite que sedesVisibles/sedeActiva (también cacheadas por
-// argumento) deduplen sus consultas a la base.
+// cache(): una sola verificación de JWT + consulta de usuario por request
+// aunque layout y página pidan la sesión cada uno. Además devuelve SIEMPRE el
+// mismo objeto usuario, lo que permite que sedesVisibles/sedeActiva (también
+// cacheadas por argumento) deduplen sus consultas a la base.
 export const obtenerSesion = cache(
   async (): Promise<UsuarioSesion | null> => {
     const jar = await cookies();
     const token = jar.get(COOKIE_SESION)?.value;
     if (!token) return null;
-    return verificarToken(token, secreto());
+    const sesion = await verificarToken(token, secreto());
+    if (!sesion) return null;
+    // El token prueba la identidad; la base manda sobre el estado actual
+    // (existencia, activo, rol, sede). Ver usuarioVigente en permissions.ts.
+    const fila = await db.query.usuarios.findFirst({
+      where: eq(usuarios.id, sesion.id),
+    });
+    return usuarioVigente(fila);
   },
 );
 
