@@ -2,6 +2,16 @@
 
 > Registro de cambios del sistema de gestión. Cada sesión de trabajo agrega su entrada al cierre: fecha, fase, qué se hizo, decisiones tomadas y pendientes que quedaron.
 
+## 2026-07-05 — Diagnóstico: mover cards del kanban en producción (sin cambios de código)
+
+**Investigado:** el reporte «mover una card del CRM falla siempre con "Algo salió mal"». Conclusión: **era el mismo bug de conexión muerta de Neon** (fix del 2026-07-04, abajo), no un bug propio del kanban. Evidencia:
+- Esquema de Neon 100 % sincronizado (9/9 migraciones, tablas y enums idénticos a los del repo); el núcleo de `avanzarEstado` (findFirst + transacción update+insert) ejecuta perfecto contra Neon desde local.
+- Reproducción real en producción (usuario admin y lead descartables, borrados al terminar): el movimiento anduvo tanto en caliente («Mover ▾») como en la **prueba fría** — 13 min de inactividad total para que Neon suspenda el compute y luego drag & drop real: sin error, card movida, base actualizada, logs de runtime limpios.
+- Por qué se sentía «100 % de las veces» y no intermitente: mover una card es típicamente la PRIMERA acción tras abrir el CRM después de inactividad (pool con conexiones muertas, sin reintento pre-fix), y cada reintento del usuario podía caer en otro lambda congelado con su propio pool muerto. Las demás acciones se hacen navegando (conexión ya caliente) y por eso fallaban solo a veces.
+- Además hay una transición real del usuario que SÍ se concretó (lead «sandra» → contactado, 2026-07-05 01:46 UTC), incompatible con un bug estructural del movimiento.
+
+**Pendiente:** que el cliente re-pruebe mover cards en producción (el fix se deployó el 2026-07-05 ~02:45 UTC, después de sus últimos intentos). Si volviera a fallar: anotar la hora exacta y avisar enseguida — los logs de runtime de Vercel solo se pueden capturar en vivo.
+
 ## 2026-07-04 — Fix crítico: "Algo salió mal" por conexión muerta de Neon
 
 **Hecho:**
