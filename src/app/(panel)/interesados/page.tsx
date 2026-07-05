@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import { and, desc, eq, gte } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray } from "drizzle-orm";
 import { db } from "@/db";
-import { configuracion, leads } from "@/db/schema";
+import { configuracion, disciplinas, leadDisciplinas, leads } from "@/db/schema";
 import { requerirSeccion } from "@/lib/auth/guards";
 import {
   CLAVE_MENSAJE_INTERESADOS,
@@ -9,9 +9,8 @@ import {
   linkWhatsApp,
   renderizarPlantilla,
 } from "@/lib/mensajes";
-import { ETIQUETA_ESTADO_LEAD, esEstadoFinal } from "@/lib/reglas-leads";
 import { ZONA_HORARIA } from "@/lib/fechas";
-import { sedeActiva } from "@/lib/sedes";
+import { sedeActiva, sedesVisibles } from "@/lib/sedes";
 import { Campo, Input } from "@/componentes/campos";
 import { ChipBanner, EncabezadoSeccion } from "@/componentes/encabezado";
 import { FormAccion } from "@/componentes/form-accion";
@@ -45,7 +44,7 @@ export default async function PaginaInteresados() {
   const sede = await sedeActiva(usuario);
 
   const desde = fechaHaceDias(DIAS_RECIENTES);
-  const [recientes, filaMensaje] = await Promise.all([
+  const [recientes, filaMensaje, catalogo, sedes] = await Promise.all([
     sede
       ? db
           .select()
@@ -58,8 +57,34 @@ export default async function PaginaInteresados() {
     db.query.configuracion.findFirst({
       where: eq(configuracion.clave, CLAVE_MENSAJE_INTERESADOS),
     }),
+    // Todo el catálogo (cualquier sede): la sede del lead se deriva de la
+    // disciplina elegida, no del mostrador donde preguntó.
+    db.query.disciplinas.findMany({
+      where: eq(disciplinas.activa, true),
+      orderBy: asc(disciplinas.nombre),
+    }),
+    sedesVisibles(usuario),
   ]);
   const plantilla = filaMensaje?.valor ?? MENSAJE_INTERESADOS_DEFAULT;
+  const nombreSede = (sedeId: number) =>
+    sedes.find((s) => s.id === sedeId)?.nombre.replace("Sede ", "") ?? "";
+
+  const interesesDeRecientes =
+    recientes.length === 0
+      ? []
+      : await db
+          .select({
+            leadId: leadDisciplinas.leadId,
+            nombre: disciplinas.nombre,
+          })
+          .from(leadDisciplinas)
+          .innerJoin(disciplinas, eq(leadDisciplinas.disciplinaId, disciplinas.id))
+          .where(
+            inArray(
+              leadDisciplinas.leadId,
+              recientes.map((l) => l.id),
+            ),
+          );
 
   return (
     <div>
@@ -95,6 +120,27 @@ export default async function PaginaInteresados() {
               <Campo etiqueta="Teléfono / WhatsApp">
                 <Input name="telefono" required inputMode="tel" />
               </Campo>
+              <fieldset className="flex flex-col gap-1.5">
+                <legend className="mb-1.5 text-sm font-medium">
+                  ¿Qué le interesa? (opcional)
+                </legend>
+                <div className="grid max-h-40 gap-1 overflow-y-auto rounded-lg border border-borde p-2">
+                  {catalogo.map((d) => (
+                    <label key={d.id} className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        name="disciplinaIds"
+                        value={d.id}
+                        className="h-4 w-4 accent-marca"
+                      />
+                      {d.nombre}
+                      <span className="text-xs text-tinta-suave">
+                        · {nombreSede(d.sedeId)}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
               <Campo etiqueta="Email (opcional)">
                 <Input name="email" type="email" />
               </Campo>
@@ -129,15 +175,16 @@ export default async function PaginaInteresados() {
                     <span className="min-w-0">
                       <span className="flex flex-wrap items-center gap-2">
                         <span className="font-medium">{lead.nombre}</span>
-                        <span
-                          className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                            esEstadoFinal(lead.estado)
-                              ? "bg-borde text-tinta-suave"
-                              : "bg-marca-suave text-marca-oscuro"
-                          }`}
-                        >
-                          {ETIQUETA_ESTADO_LEAD[lead.estado]}
-                        </span>
+                        {interesesDeRecientes
+                          .filter((i) => i.leadId === lead.id)
+                          .map((i) => (
+                            <span
+                              key={i.nombre}
+                              className="rounded-full bg-fondo px-2 py-0.5 text-[11px] font-medium text-tinta-suave ring-1 ring-borde"
+                            >
+                              {i.nombre}
+                            </span>
+                          ))}
                       </span>
                       <span className="mt-0.5 block text-xs text-tinta-suave">
                         {formatoFechaHora(lead.creadoEn)} · {lead.telefono}

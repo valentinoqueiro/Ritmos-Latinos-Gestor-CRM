@@ -36,6 +36,7 @@ Hasta 60 solicitudes por minuto por API key. Si se supera, la API responde `429`
 | Alcance | Permite |
 |---|---|
 | `leads:write` | Crear leads (`POST /api/v1/leads`) |
+| `leads:read` | Leer el pipeline de leads (`GET /api/v1/leads`) |
 | `alumnos:read` | Leer alumnos (`GET /api/v1/alumnos`) |
 | `vencimientos:read` | Leer cuotas por vencer/vencidas (`GET /api/v1/vencimientos`) |
 | `cumpleanos:read` | Leer próximos cumpleaños (`GET /api/v1/cumpleanos`) |
@@ -55,7 +56,9 @@ Alcance requerido: `leads:write`. El lead entra al pipeline del CRM como **"nuev
   "nombre": "Lucía Fernández",
   "telefono": "+543815551234",
   "fuente": "Meta Ads - campaña julio",
-  "sedeInteresId": 1,
+  "disciplinas": ["Pole Sport"],
+  "origenNegocio": "Meta Ads",
+  "email": "lucia@mail.com",
   "nota": "Preguntó por Pole Sport en Instagram"
 }
 ```
@@ -65,8 +68,11 @@ Alcance requerido: `leads:write`. El lead entra al pipeline del CRM como **"nuev
 | `nombre` | string | sí | mínimo 2 caracteres |
 | `telefono` | string | sí | solo dígitos, espacios y `+()-` |
 | `fuente` | string | sí | identifica el sistema/origen externo, 2 a 80 caracteres |
-| `sedeInteresId` | number | no | id de sede (ver `GET /api/interno/sedes` desde el panel, o pedirlo al admin) |
+| `disciplinas` | string[] | no | nombres del catálogo (case-insensitive). **Derivan la sede del lead**; un nombre desconocido devuelve 400 con la lista de válidos |
+| `origenNegocio` | string | no | de dónde vino el interesado: "Meta Ads", "Instagram", "Web", "Referido"… (catálogo configurable; desconocido = 400 con los válidos) |
+| `email` | string | no | email de contacto |
 | `nota` | string | no | hasta 300 caracteres |
+| `sedeInteresId` | number | no | **OBSOLETO**: la sede se deriva de `disciplinas`. Se sigue aceptando por compatibilidad |
 
 **Respuesta (201):**
 
@@ -87,6 +93,54 @@ curl -X POST http://localhost:3000/api/v1/leads \
     "telefono": "+543815551234",
     "fuente": "Meta Ads - campaña julio"
   }'
+```
+
+---
+
+## `GET /api/v1/leads` — pipeline de leads (lectura)
+
+Alcance requerido: `leads:read`. Devuelve el pipeline completo del CRM en solo lectura, para automatizaciones externas (seguimiento, recordatorios, reportes). **La API no envía mensajes**: expone los datos para que otro sistema lo haga.
+
+**Query params (opcionales):**
+
+| Param | Valores |
+|---|---|
+| `estado` | `nuevo`, `contactado`, `prueba_agendada`, `convertido`, `perdido` |
+| `desde` | `YYYY-MM-DD` — solo leads creados desde esa fecha |
+
+**Respuesta (200):**
+
+```json
+{
+  "leads": [
+    {
+      "id": 42,
+      "nombre": "Lucía Fernández",
+      "telefono": "+543815551234",
+      "email": null,
+      "estado": "nuevo",
+      "etapaDesde": "2026-07-04T18:00:00.000Z",
+      "origen": "api",
+      "fuente": "Meta Ads - campaña julio",
+      "origenNegocio": "Meta Ads",
+      "disciplinas": [{ "id": 6, "nombre": "Pole Sport", "sedeId": 2 }],
+      "sedeIds": [2],
+      "pruebaFecha": null,
+      "motivoPerdida": null,
+      "alumnoId": null,
+      "creadoEn": "2026-07-04T18:00:00.000Z"
+    }
+  ]
+}
+```
+
+`etapaDesde` dice desde cuándo el lead está en su etapa actual (útil para detectar leads fríos desde afuera). `sedeIds` se deriva de las disciplinas; vacío = lead sin clasificar.
+
+**curl:**
+
+```bash
+curl "http://localhost:3000/api/v1/leads?estado=nuevo&desde=2026-07-01" \
+  -H "Authorization: Bearer rlk_live_TU_CLAVE"
 ```
 
 ---

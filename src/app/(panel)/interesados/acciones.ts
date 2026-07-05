@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
-import { leads, origenesNegocio } from "@/db/schema";
+import { leadDisciplinas, leads, origenesNegocio } from "@/db/schema";
 import { exigirSeccion } from "@/lib/auth/guards";
 import { autorizarSede, ErrorAutorizacion } from "@/lib/auth/permissions";
 import { esEstadoFinal, ETIQUETA_ESTADO_LEAD } from "@/lib/reglas-leads";
@@ -25,6 +25,10 @@ function mensajeDeError(error: unknown): EstadoAccion {
 
 const esquemaInteresado = z.object({
   sedeId: z.coerce.number().int().positive(),
+  // Disciplinas de interés (opcionales): derivan la(s) sede(s) del lead.
+  // Pueden ser de cualquier sede — la persona pregunta en un mostrador pero
+  // puede interesarle una disciplina de la otra.
+  disciplinaIds: z.array(z.coerce.number().int().positive()),
   nombre: z.string().trim().min(2, "Poné el nombre"),
   telefono: z
     .string()
@@ -51,6 +55,7 @@ export async function crearInteresado(
     const usuario = await exigirSeccion("interesados");
     const datos = esquemaInteresado.parse({
       sedeId: formData.get("sedeId"),
+      disciplinaIds: formData.getAll("disciplinaIds"),
       nombre: formData.get("nombre"),
       telefono: formData.get("telefono"),
       email: formData.get("email") ?? "",
@@ -80,15 +85,30 @@ export async function crearInteresado(
       where: eq(origenesNegocio.nombre, "Mostrador"),
     });
 
-    await db.insert(leads).values({
-      nombre: datos.nombre,
-      telefono: datos.telefono,
-      email: datos.email,
-      nota: datos.nota,
-      sedeInteresId: datos.sedeId,
-      origen: "manual",
-      fuente: "mostrador",
-      origenNegocioId: origenMostrador?.id ?? null,
+    await db.transaction(async (tx) => {
+      const [lead] = await tx
+        .insert(leads)
+        .values({
+          nombre: datos.nombre,
+          telefono: datos.telefono,
+          email: datos.email,
+          nota: datos.nota,
+          // Sede de CAPTURA (dónde vino a preguntar): mantiene la lista de la
+          // secretaria. La sede de interés real se deriva de las disciplinas.
+          sedeInteresId: datos.sedeId,
+          origen: "manual",
+          fuente: "mostrador",
+          origenNegocioId: origenMostrador?.id ?? null,
+        })
+        .returning();
+      if (datos.disciplinaIds.length > 0) {
+        await tx.insert(leadDisciplinas).values(
+          datos.disciplinaIds.map((disciplinaId) => ({
+            leadId: lead.id,
+            disciplinaId,
+          })),
+        );
+      }
     });
     revalidatePath("/interesados");
     revalidatePath("/inicio");

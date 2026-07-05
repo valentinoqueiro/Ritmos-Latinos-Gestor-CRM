@@ -17,6 +17,7 @@ export const PREFIJO_CLAVE = "rlk_live_";
 
 export const ALCANCES_API = [
   "leads:write",
+  "leads:read",
   "alumnos:read",
   "vencimientos:read",
   "cumpleanos:read",
@@ -26,6 +27,7 @@ export type AlcanceApi = (typeof ALCANCES_API)[number];
 
 export const ETIQUETA_ALCANCE: Record<AlcanceApi, string> = {
   "leads:write": "Crear leads",
+  "leads:read": "Leer leads (pipeline del CRM)",
   "alumnos:read": "Leer alumnos",
   "vencimientos:read": "Leer vencimientos",
   "cumpleanos:read": "Leer cumpleaños",

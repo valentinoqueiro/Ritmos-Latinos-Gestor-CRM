@@ -50,8 +50,8 @@ El CRM evoluciona a un pipeline kanban con disciplinas de interés (la sede se D
 | # | Fase | Estado | Fecha |
 |---|------|--------|-------|
 | R1 | Cimientos del modelo + deuda documental | ✅ Terminada | 2026-07-04 |
-| R2 | Kanban + ficha del lead + alerta de frío (admin) | ⬜ Pendiente | — |
-| R3 | Captura evolucionada (secretaria) + API v1 (GET /leads) | ⬜ Pendiente | — |
+| R2 | Kanban + ficha del lead + alerta de frío (admin) | ✅ Terminada | 2026-07-04 |
+| R3 | Captura evolucionada (secretaria) + API v1 (GET /leads) | ✅ Terminada | 2026-07-04 |
 | R4 | Retención en el CRM + conversión enriquecida | ⬜ Pendiente | — |
 | R5 | Métricas del CRM + verificación e2e + cierre | ⬜ Pendiente | — |
 

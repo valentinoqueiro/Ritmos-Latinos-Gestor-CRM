@@ -2,6 +2,24 @@
 
 > Registro de cambios del sistema de gestión. Cada sesión de trabajo agrega su entrada al cierre: fecha, fase, qué se hizo, decisiones tomadas y pendientes que quedaron.
 
+## 2026-07-04 — Rediseño CRM · R3: captura con disciplinas + API v1 (y fix de acciones colgadas)
+
+**Hecho:**
+- `/interesados` (secretaria): el formulario suma multi-select de disciplinas de interés de TODO el catálogo (la sede del lead se deriva de la disciplina, no del mostrador; `sedeInteresId` queda como sede de captura para su lista). La lista de 7 días ya no muestra la etapa del pipeline (decisión del cliente) y muestra las disciplinas.
+- `POST /api/v1/leads` acepta `disciplinas` (nombres del catálogo, case-insensitive, derivan la sede; desconocida = 400 con la lista de válidas) y `origenNegocio` (catálogo configurable); contrato anterior 100 % compatible (`sedeInteresId` documentado como obsoleto).
+- `GET /api/v1/leads` nuevo (alcance `leads:read`): pipeline completo en solo lectura con filtros `estado` y `desde`, disciplinas, `sedeIds` derivadas y `etapaDesde` — la vía para automatizaciones externas. Documentado en `docs/API_PUBLICA.md`.
+- **Fix importante (bug pre-existente)**: en producción, TODA server action del panel que revalidaba sin redirect (dar de baja, abrir turno, egresos, guardar umbral…) dejaba la respuesta colgada («Guardando…» eterno) aunque el dato se guardaba. Causa: el `loading.tsx` del grupo `(panel)` + revalidatePath en build de producción (Next 16). Workaround: se quitó ese `loading.tsx` (el del CRM no tiene el problema y queda). Verificado antes/después en el build de producción.
+- Verificación e2e: captura con 2 disciplinas de sedes distintas visible en el kanban con ambas sedes; POST formato viejo (201), POST nuevo (201), disciplina desconocida (400), GET con filtros (200), estado inválido (400), key sin alcance (403), key con su alcance (200).
+
+## 2026-07-04 — Rediseño CRM · R2: kanban, ficha del lead y alerta de frío
+
+**Hecho:**
+- `/crm` pasa de listas verticales a **tablero kanban** (5 columnas sobre la identidad oscura de la marca, tarjetas arrastrables con dnd-kit): drag directo entre etapas abiertas (retrocesos incluidos), soltar en Prueba/Perdido abre su formulario (cancelar revierte), Convertido confirma y sigue al flujo existente; drags inválidos avisan sin mover; optimista con reversión.
+- Fallback táctil «Mover ▾» por tarjeta + scroll horizontal con snap (celular garantizado).
+- **Ficha del lead** (`/crm/[id]`): datos, clasificación editable de disciplinas y origen (así la admin completa los «sin disciplina»), historial de actividad con notas por canal, WhatsApp con la plantilla existente.
+- Alerta de **lead frío** (badge en tarjeta + contador en cabecera) con umbral editable en Configuración (default 3 días); chip «sin disciplina · clasificar» accionable como filtro; alta manual con disciplinas y origen.
+- Verificación e2e en build de producción: drag ida/vuelta, modales, umbral dinámico, wa.me prellenado, nota visible sin recargar, móvil por menú, secretaria/owner bloqueados por URL. Fix visual: las tarjetas heredaban texto blanco del tablero oscuro.
+
 ## 2026-07-04 — Rediseño CRM · R1: cimientos del modelo + deuda documental
 
 **Hecho:**
