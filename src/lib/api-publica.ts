@@ -4,6 +4,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import {
   alumnos,
+  campanas,
   disciplinas,
   leadDisciplinas,
   leads,
@@ -129,6 +130,17 @@ export const esquemaLeadPublico = z.object({
   // Origen de negocio por nombre (catálogo configurable: "Meta Ads",
   // "Instagram", "Web"...). Desconocido = error con los valores válidos.
   origenNegocio: z.string().trim().max(80).nullable().optional(),
+  // Campaña de captación (ej. el nombre de la campaña de Meta Lead Ads).
+  // A diferencia del origen NO valida contra un catálogo: las campañas nacen
+  // en la plataforma de anuncios, así que acá se crean solas (find-or-create
+  // case-insensitive). Opcional: sin campaña = orgánico.
+  campana: z
+    .string()
+    .trim()
+    .min(2, "La campaña es muy corta")
+    .max(120, "La campaña es muy larga")
+    .nullable()
+    .optional(),
   fuente: z
     .string()
     .trim()
@@ -194,6 +206,8 @@ export async function crearLeadPublico(datos: DatosLeadPublico) {
     origenNegocioId = origen.id;
   }
 
+  const campanaId = datos.campana ? await campanaPorNombre(datos.campana) : null;
+
   return db.transaction(async (tx) => {
     const [creado] = await tx
       .insert(leads)
@@ -203,6 +217,7 @@ export async function crearLeadPublico(datos: DatosLeadPublico) {
         email: datos.email ?? null,
         sedeInteresId: datos.sedeInteresId ?? null,
         origenNegocioId,
+        campanaId,
         nota: datos.nota ?? null,
         origen: "api",
         fuente: datos.fuente,
@@ -218,6 +233,31 @@ export async function crearLeadPublico(datos: DatosLeadPublico) {
     }
     return creado;
   });
+}
+
+/**
+ * Campaña por nombre con find-or-create (case-insensitive): las campañas las
+ * define la plataforma de anuncios, no un admin, así que la primera vez que
+ * llega un lead de una campaña nueva se crea sola. A prueba de ingestas
+ * simultáneas: si otro request la creó en el medio, el onConflictDoNothing
+ * no falla y la relectura la encuentra.
+ */
+async function campanaPorNombre(nombre: string): Promise<number> {
+  const buscar = async () => {
+    const todas = await db.query.campanas.findMany();
+    return todas.find((c) => c.nombre.toLowerCase() === nombre.toLowerCase());
+  };
+  const existente = await buscar();
+  if (existente) return existente.id;
+  const [creada] = await db
+    .insert(campanas)
+    .values({ nombre })
+    .onConflictDoNothing()
+    .returning({ id: campanas.id });
+  if (creada) return creada.id;
+  const recargada = await buscar();
+  if (!recargada) throw new ErrorDeIngesta("No se pudo registrar la campaña");
+  return recargada.id;
 }
 
 // --- Leads (lectura, para automatizaciones externas) ---------------------------
@@ -240,6 +280,7 @@ export type LeadPublico = {
   origen: string; // técnico: manual | api
   fuente: string | null;
   origenNegocio: string | null;
+  campana: string | null;
   disciplinas: { id: number; nombre: string; sedeId: number }[];
   sedeIds: number[]; // derivadas de las disciplinas
   pruebaFecha: string | null;
@@ -251,17 +292,26 @@ export type LeadPublico = {
 /**
  * Pipeline de leads en solo lectura (alcance leads:read): la vía para que
  * automatizaciones externas (recordatorios, seguimiento) lean el CRM.
- * Filtros opcionales: estado y desde (fecha de creación mínima, YYYY-MM-DD).
+ * Filtros opcionales: estado, desde (fecha de creación mínima, YYYY-MM-DD)
+ * y campana (nombre, case-insensitive).
  */
 export async function leadsPublicos(filtros: {
   estado?: (typeof ESTADOS_LEAD_PUBLICOS)[number];
   desde?: string;
+  campana?: string;
 }): Promise<LeadPublico[]> {
   const lista = await db.query.leads.findMany({
     where: filtros.estado ? eq(leads.estado, filtros.estado) : undefined,
   });
+  const catalogoCampanas = await db.query.campanas.findMany();
   const desde = filtros.desde ? new Date(`${filtros.desde}T00:00:00-03:00`) : null;
-  const filtrados = desde ? lista.filter((l) => l.creadoEn >= desde) : lista;
+  let filtrados = desde ? lista.filter((l) => l.creadoEn >= desde) : lista;
+  if (filtros.campana) {
+    const buscada = catalogoCampanas.find(
+      (c) => c.nombre.toLowerCase() === filtros.campana!.toLowerCase(),
+    );
+    filtrados = buscada ? filtrados.filter((l) => l.campanaId === buscada.id) : [];
+  }
   if (filtrados.length === 0) return [];
 
   const [intereses, origenes] = await Promise.all([
@@ -298,6 +348,8 @@ export async function leadsPublicos(filtros: {
         fuente: l.fuente,
         origenNegocio:
           origenes.find((o) => o.id === l.origenNegocioId)?.nombre ?? null,
+        campana:
+          catalogoCampanas.find((c) => c.id === l.campanaId)?.nombre ?? null,
         disciplinas: propias.map(({ id, nombre, sedeId }) => ({
           id,
           nombre,

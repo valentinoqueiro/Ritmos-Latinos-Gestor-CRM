@@ -64,6 +64,13 @@
       "when": 1783201296162,
       "tag": "0008_crm-cimientos",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1783270997839,
+      "tag": "0009_campanas",
+      "breakpoints": true
     }
   ]
 }

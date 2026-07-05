@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { asc, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import {
+  campanas,
   disciplinas,
   horarios,
   leadActividades,
@@ -64,6 +65,10 @@ export default async function PaginaFichaLead({
 
   const lead = await db.query.leads.findFirst({ where: eq(leads.id, leadId) });
   if (!lead) notFound();
+
+  const campana = lead.campanaId
+    ? await db.query.campanas.findFirst({ where: eq(campanas.id, lead.campanaId) })
+    : null;
 
   const [
     intereses,
@@ -213,6 +218,12 @@ export default async function PaginaFichaLead({
                   {lead.fuente === "mostrador" ? " · mostrador" : ""}
                 </dd>
               </div>
+              {campana ? (
+                <div className="flex justify-between gap-3">
+                  <dt className="text-tinta-suave">Campaña</dt>
+                  <dd className="min-w-0 truncate font-medium">{campana.nombre}</dd>
+                </div>
+              ) : null}
               {lead.nota ? (
                 <div>
                   <dt className="text-tinta-suave">Nota de captura</dt>

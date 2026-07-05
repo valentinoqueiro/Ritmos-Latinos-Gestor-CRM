@@ -68,7 +68,7 @@ describe("metricasDeLeads (métricas del CRM, R5)", () => {
 
   it("un lead con dos disciplinas cuenta en ambas (y en ambas sedes)", () => {
     const m = metricasDeLeads([
-      { estado: "convertido", origen: "Meta Ads", disciplinas: [pole, jazz] },
+      { estado: "convertido", origen: "Meta Ads", campana: null, disciplinas: [pole, jazz] },
     ]);
     expect(m.porDisciplina.map((f) => f.clave).sort()).toEqual(["Jazz", "Pole"]);
     expect(m.porDisciplina.every((f) => f.convertidos === 1)).toBe(true);
@@ -77,9 +77,9 @@ describe("metricasDeLeads (métricas del CRM, R5)", () => {
 
   it("tasa por dimensión: convertidos sobre cerrados; null sin desenlaces", () => {
     const m = metricasDeLeads([
-      { estado: "convertido", origen: "Instagram", disciplinas: [pole] },
-      { estado: "perdido", origen: "Instagram", disciplinas: [pole] },
-      { estado: "nuevo", origen: "Web", disciplinas: [jazz] },
+      { estado: "convertido", origen: "Instagram", campana: null, disciplinas: [pole] },
+      { estado: "perdido", origen: "Instagram", campana: null, disciplinas: [pole] },
+      { estado: "nuevo", origen: "Web", campana: null, disciplinas: [jazz] },
     ]);
     expect(m.porOrigen.find((f) => f.clave === "Instagram")?.tasa).toBe(0.5);
     expect(m.porOrigen.find((f) => f.clave === "Web")?.tasa).toBeNull();
@@ -88,8 +88,8 @@ describe("metricasDeLeads (métricas del CRM, R5)", () => {
 
   it("sin disciplina: fuera de disciplina/sede pero contado y visible", () => {
     const m = metricasDeLeads([
-      { estado: "nuevo", origen: null, disciplinas: [] },
-      { estado: "contactado", origen: "Mostrador", disciplinas: [pole] },
+      { estado: "nuevo", origen: null, campana: null, disciplinas: [] },
+      { estado: "contactado", origen: "Mostrador", campana: null, disciplinas: [pole] },
     ]);
     expect(m.sinDisciplina).toBe(1);
     expect(m.porDisciplina).toHaveLength(1);
@@ -98,16 +98,30 @@ describe("metricasDeLeads (métricas del CRM, R5)", () => {
 
   it("sin origen agrupa como 'Sin clasificar' (visible, no desaparece)", () => {
     const m = metricasDeLeads([
-      { estado: "nuevo", origen: null, disciplinas: [pole] },
+      { estado: "nuevo", origen: null, campana: null, disciplinas: [pole] },
     ]);
     expect(m.porOrigen[0]?.clave).toBe("Sin clasificar");
   });
 
+  it("compara campañas: tasa por campaña y 'Orgánico' para los sin campaña", () => {
+    const m = metricasDeLeads([
+      { estado: "convertido", origen: "Meta Ads", campana: "Pole julio", disciplinas: [pole] },
+      { estado: "perdido", origen: "Meta Ads", campana: "Pole julio", disciplinas: [pole] },
+      { estado: "convertido", origen: "Meta Ads", campana: "Promo salsa", disciplinas: [jazz] },
+      { estado: "nuevo", origen: "Mostrador", campana: null, disciplinas: [pole] },
+    ]);
+    expect(m.porCampana.find((f) => f.clave === "Pole julio")?.tasa).toBe(0.5);
+    expect(m.porCampana.find((f) => f.clave === "Promo salsa")?.tasa).toBe(1);
+    const organico = m.porCampana.find((f) => f.clave === "Orgánico");
+    expect(organico?.total).toBe(1);
+    expect(organico?.tasa).toBeNull();
+  });
+
   it("ordena por total descendente", () => {
     const m = metricasDeLeads([
-      { estado: "nuevo", origen: "Web", disciplinas: [jazz] },
-      { estado: "nuevo", origen: "Meta Ads", disciplinas: [pole] },
-      { estado: "nuevo", origen: "Meta Ads", disciplinas: [pole] },
+      { estado: "nuevo", origen: "Web", campana: null, disciplinas: [jazz] },
+      { estado: "nuevo", origen: "Meta Ads", campana: null, disciplinas: [pole] },
+      { estado: "nuevo", origen: "Meta Ads", campana: null, disciplinas: [pole] },
     ]);
     expect(m.porOrigen[0]?.clave).toBe("Meta Ads");
     expect(m.porDisciplina[0]?.clave).toBe("Pole");

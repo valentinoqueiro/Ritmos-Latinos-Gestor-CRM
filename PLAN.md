@@ -55,6 +55,8 @@ El CRM evoluciona a un pipeline kanban con disciplinas de interés (la sede se D
 | R4 | Retención en el CRM + conversión enriquecida | ✅ Terminada | 2026-07-04 |
 | R5 | Métricas del CRM + verificación e2e + cierre | ✅ Terminada | 2026-07-04 |
 
+**Extensión (2026-07-05): campañas de captación.** Para comparar campañas de Meta Lead Ads entre sí: tabla `campanas` con find-or-create desde la ingesta de la API v1 (`campana` opcional en POST/GET, 100 % compatible), filtros combinables por origen y campaña en el kanban, y corte «Por campaña» en Métricas con «Orgánico» visible. La configuración del lado de Meta (formulario + integración que empuja a la API) la hace el cliente después. Detalle en CHANGELOG.
+
 ---
 
 ## 1. Resumen ejecutivo

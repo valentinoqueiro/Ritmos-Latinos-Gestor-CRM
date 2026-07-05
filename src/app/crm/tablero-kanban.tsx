@@ -31,6 +31,7 @@ export type LeadDeTablero = {
   estado: EstadoLead;
   disciplinas: { id: number; nombre: string; sede: string }[];
   origen: string | null;
+  campana: string | null;
   viaApi: string | null;
   diasEnEtapa: number;
   frio: boolean;
@@ -98,6 +99,7 @@ function ContenidoTarjeta({ lead }: { lead: LeadDeTablero }) {
       <div className="mt-2 flex items-center justify-between gap-2 text-xs text-tinta-suave">
         <span className="min-w-0 truncate">
           {lead.origen ?? "sin origen"}
+          {lead.campana ? ` · ${lead.campana}` : ""}
           {lead.viaApi ? ` · vía ${lead.viaApi}` : ""}
         </span>
         <span className="shrink-0 tabular-nums">
@@ -393,15 +395,32 @@ export function TableroKanban({
   const [aviso, setAviso] = useState<string | null>(null);
   const [arrastrando, setArrastrando] = useState<LeadDeTablero | null>(null);
   const [soloSinDisciplina, setSoloSinDisciplina] = useState(false);
+  // Filtros combinables por origen y campaña (comparar campañas de anuncios).
+  const [filtroOrigen, setFiltroOrigen] = useState<string | null>(null);
+  const [filtroCampana, setFiltroCampana] = useState<string | null>(null);
 
   const sensores = useSensors(
     // Distancia mínima para no confundir taps/clicks con arrastres.
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
   );
 
-  const visibles = soloSinDisciplina
-    ? lista.filter((l) => l.disciplinas.length === 0)
-    : lista;
+  // Opciones de filtro: solo valores presentes en el tablero (un filtro que
+  // no filtra nada no ayuda a nadie).
+  const origenesEnTablero = [
+    ...new Set(lista.map((l) => l.origen).filter((o): o is string => o !== null)),
+  ].sort((a, b) => a.localeCompare(b));
+  const campanasEnTablero = [
+    ...new Set(lista.map((l) => l.campana).filter((c): c is string => c !== null)),
+  ].sort((a, b) => a.localeCompare(b));
+
+  const visibles = lista.filter(
+    (l) =>
+      (!soloSinDisciplina || l.disciplinas.length === 0) &&
+      (filtroOrigen === null || l.origen === filtroOrigen) &&
+      (filtroCampana === null || l.campana === filtroCampana),
+  );
+  const hayFiltros =
+    soloSinDisciplina || filtroOrigen !== null || filtroCampana !== null;
   const porEstado = (estado: EstadoLead) =>
     visibles.filter((l) => l.estado === estado);
 
@@ -517,6 +536,68 @@ export function TableroKanban({
           </button>
         </div>
       </div>
+
+      {/* Filtros del tablero: origen y campaña (combinables entre sí y con
+          «sin disciplina»). Solo aparecen si hay algo que filtrar. */}
+      {origenesEnTablero.length > 0 || campanasEnTablero.length > 0 ? (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <span className="text-xs font-semibold uppercase tracking-wide text-tinta-suave">
+            Filtrar
+          </span>
+          {origenesEnTablero.length > 0 ? (
+            <select
+              value={filtroOrigen ?? ""}
+              onChange={(e) => setFiltroOrigen(e.target.value === "" ? null : e.target.value)}
+              aria-label="Filtrar por origen"
+              className={`h-9 cursor-pointer rounded-full px-3 text-xs font-semibold ring-1 transition ${
+                filtroOrigen !== null
+                  ? "bg-marca text-white ring-marca"
+                  : "bg-superficie text-tinta ring-borde hover:bg-fondo"
+              }`}
+            >
+              <option value="">Origen · todos</option>
+              {origenesEnTablero.map((o) => (
+                <option key={o} value={o}>
+                  {o}
+                </option>
+              ))}
+            </select>
+          ) : null}
+          {campanasEnTablero.length > 0 ? (
+            <select
+              value={filtroCampana ?? ""}
+              onChange={(e) => setFiltroCampana(e.target.value === "" ? null : e.target.value)}
+              aria-label="Filtrar por campaña"
+              className={`h-9 cursor-pointer rounded-full px-3 text-xs font-semibold ring-1 transition ${
+                filtroCampana !== null
+                  ? "bg-marca text-white ring-marca"
+                  : "bg-superficie text-tinta ring-borde hover:bg-fondo"
+              }`}
+            >
+              <option value="">Campaña · todas</option>
+              {campanasEnTablero.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          ) : null}
+          {hayFiltros ? (
+            <button
+              type="button"
+              onClick={() => {
+                setFiltroOrigen(null);
+                setFiltroCampana(null);
+                setSoloSinDisciplina(false);
+              }}
+              className="flex h-9 items-center gap-1 rounded-full px-3 text-xs font-semibold text-tinta-suave transition hover:bg-fondo"
+            >
+              <IconoCerrar className="h-3 w-3" aria-hidden />
+              Limpiar · viendo {visibles.length} de {lista.length}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
 
       {aviso ? (
         <p

@@ -13,8 +13,9 @@ import {
 // agentes). Alcance requerido: leads:write. Entra al pipeline como "nuevo"
 // con origen "api" y la fuente identificada (ver PLAN.md §3, Fase 7).
 // Desde el rediseño del CRM acepta además `disciplinas` (nombres del catálogo;
-// derivan la sede) y `origenNegocio`; `sedeInteresId` queda obsoleto pero
-// sigue aceptado por compatibilidad.
+// derivan la sede), `origenNegocio` y `campana` (find-or-create, para comparar
+// campañas de anuncios); `sedeInteresId` queda obsoleto pero sigue aceptado
+// por compatibilidad.
 
 export async function POST(request: NextRequest) {
   const auth = await autenticarApiPublica(request, "leads:write");
@@ -75,10 +76,14 @@ export async function GET(request: NextRequest) {
       { status: 400 },
     );
   }
+  // Campaña por nombre (case-insensitive); desconocida = lista vacía, no error
+  // (una automatización puede preguntar por una campaña que todavía no mandó leads).
+  const campana = params.get("campana") ?? undefined;
 
   const lista = await leadsPublicos({
     estado: estado as (typeof ESTADOS_LEAD_PUBLICOS)[number] | undefined,
     desde,
+    campana,
   });
   return NextResponse.json({ leads: lista });
 }

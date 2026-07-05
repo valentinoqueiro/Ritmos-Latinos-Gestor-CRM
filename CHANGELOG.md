@@ -2,6 +2,19 @@
 
 > Registro de cambios del sistema de gestión. Cada sesión de trabajo agrega su entrada al cierre: fecha, fase, qué se hizo, decisiones tomadas y pendientes que quedaron.
 
+## 2026-07-05 — CRM: campañas de captación + filtros por origen y campaña (pendiente de deploy)
+
+**Contexto:** el cliente va a correr varias campañas de Meta Lead Ads en paralelo (pole, salsa, promos) y los leads entrarán por la API v1 con su campaña identificada; necesita compararlas para decidir dónde invertir.
+
+**Hecho:**
+- **Modelo** (migración `0009_campanas`, aditiva): tabla `campanas` (id, nombre único, creado_en) + `leads.campana_id` FK opcional. La campaña es ortogonal al origen de negocio (el origen dice el canal, la campaña cuál anuncio). Sin pantalla de administración: las campañas se **crean solas** con el primer lead que las trae (find-or-create case-insensitive, a prueba de ingestas simultáneas), porque nacen en la plataforma de anuncios.
+- **API v1, 100 % compatible**: `POST /api/v1/leads` acepta `campana` opcional (2–120 caracteres; "POLE AGOSTO" reusa "Pole agosto"); `GET /api/v1/leads` devuelve `campana` y suma el filtro `?campana=` (case-insensitive; desconocida = lista vacía, no error). Contrato anterior intacto (verificado: POST formato viejo → 201 con `campana` null). `docs/API_PUBLICA.md` actualizado.
+- **Kanban**: fila de filtros píldora «Origen» y «Campaña» (solo valores presentes en el tablero), **combinables** entre sí y con «sin disciplina», con contador «viendo X de Y» y botón limpiar; la campaña aparece en la línea de origen de cada tarjeta y en la ficha del lead.
+- **Métricas**: nueva sección «Por campaña» (barras + «ver como tabla») con «Orgánico» agrupando a los sin campaña; solo aparece cuando hay campañas reales. Lógica pura en `metricasDeLeads` (`porCampana`) con test nuevo — 127 en verde.
+- Seed local con dos campañas de ejemplo. Verificado e2e en build de producción: ingesta (compat, campaña nueva, reuso por case), filtros solos y combinados con conteos exactos, limpiar, tarjeta y ficha con campaña, métricas con Orgánico/campañas.
+
+**Pendiente (freno pactado):** aplicar `0009_campanas` a Neon y pushear/deployar, con OK del cliente. La migración es puramente aditiva (tabla nueva + columna nullable): sin riesgo para los datos existentes.
+
 ## 2026-07-05 — Mejora CRM: clase de prueba en dos pasos (disciplina → clase)
 
 **Hecho:** en el modal «Clase de prueba» del kanban, el desplegable tiraba los 39 horarios de todas las disciplinas y sedes de una. Ahora se elige primero la **disciplina** (las de interés del lead aparecen arriba, marcadas «— le interesaba», y la primera queda preseleccionada) y el desplegable de clases se filtra a esa disciplina. Lead sin disciplinas: selector vacío («Elegí la disciplina») con las clases deshabilitadas hasta elegir. Sin cambios de modelo ni de la acción (`agendarPrueba` sigue recibiendo horario + fecha). Verificado e2e en build de producción: preselección por interés, refiltrado al cambiar disciplina, agendado real (lead → prueba agendada con horario de la disciplina correcta) y caso sin intereses.

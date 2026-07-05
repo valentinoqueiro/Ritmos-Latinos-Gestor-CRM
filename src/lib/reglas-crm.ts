@@ -46,6 +46,8 @@ export type LeadParaMetricas = {
   estado: EstadoLead;
   // Nombre del origen de negocio ya resuelto (null = sin clasificar).
   origen: string | null;
+  // Nombre de la campaña de captación ya resuelto (null = orgánico).
+  campana: string | null;
   disciplinas: { nombre: string; sedeId: number }[];
 };
 
@@ -66,6 +68,10 @@ export type MetricasCrm = {
   porDisciplina: FilaMetrica[];
   porSede: (FilaMetrica & { sedeId: number })[];
   porOrigen: FilaMetrica[];
+  // Por campaña de anuncios: la comparación que decide dónde invertir.
+  // «Orgánico» agrupa a los leads sin campaña (visible, misma filosofía que
+  // «Sin clasificar» en origen).
+  porCampana: FilaMetrica[];
   // Sin disciplina = sin sede: fuera de las métricas por disciplina/sede,
   // pero SIEMPRE visible para que la admin los clasifique (decisión cliente).
   sinDisciplina: number;
@@ -87,6 +93,7 @@ export function metricasDeLeads(lista: LeadParaMetricas[]): MetricasCrm {
   const disciplina = new Map<string, { c: number; p: number; t: number }>();
   const sede = new Map<number, { c: number; p: number; t: number }>();
   const origen = new Map<string, { c: number; p: number; t: number }>();
+  const campana = new Map<string, { c: number; p: number; t: number }>();
   let sinDisciplina = 0;
 
   const acumular = <K,>(
@@ -104,6 +111,7 @@ export function metricasDeLeads(lista: LeadParaMetricas[]): MetricasCrm {
   for (const lead of lista) {
     porEtapa[lead.estado] += 1;
     acumular(origen, lead.origen ?? "Sin clasificar", lead.estado);
+    acumular(campana, lead.campana ?? "Orgánico", lead.estado);
     if (lead.disciplinas.length === 0) {
       sinDisciplina += 1;
       continue;
@@ -132,6 +140,7 @@ export function metricasDeLeads(lista: LeadParaMetricas[]): MetricasCrm {
       .map(([sedeId, f]) => ({ ...aFila([String(sedeId), f]), sedeId }))
       .sort(porTotal),
     porOrigen: [...origen.entries()].map(aFila).sort(porTotal),
+    porCampana: [...campana.entries()].map(aFila).sort(porTotal),
     sinDisciplina,
   };
 }

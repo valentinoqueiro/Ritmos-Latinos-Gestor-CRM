@@ -402,6 +402,23 @@ export const origenesNegocio = pgTable(
   (tabla) => [uniqueIndex("origenes_negocio_nombre_unico").on(tabla.nombre)],
 );
 
+// Campañas de captación (ej. anuncios de Meta Lead Ads: "Pole julio",
+// "Promo salsa"). NO se administran a mano: la ingesta de la API v1 hace
+// find-or-create por nombre (case-insensitive), porque las campañas nacen en
+// la plataforma de anuncios y llegan con cada lead. Ortogonal al origen de
+// negocio: el origen dice el canal ("Meta Ads"); la campaña, cuál anuncio.
+export const campanas = pgTable(
+  "campanas",
+  {
+    id: serial("id").primaryKey(),
+    nombre: text("nombre").notNull(),
+    creadoEn: timestamp("creado_en", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (tabla) => [uniqueIndex("campanas_nombre_unico").on(tabla.nombre)],
+);
+
 export const leads = pgTable("leads", {
   id: serial("id").primaryKey(),
   nombre: text("nombre").notNull(),
@@ -417,6 +434,9 @@ export const leads = pgTable("leads", {
   origenNegocioId: integer("origen_negocio_id").references(
     () => origenesNegocio.id,
   ),
+  // Campaña de captación (llega con el lead por la API v1); null = orgánico
+  // o anterior a las campañas.
+  campanaId: integer("campana_id").references(() => campanas.id),
   nota: text("nota"),
   estado: estadoLeadEnum("estado").notNull().default("nuevo"),
   // Cuándo entró a la etapa actual: alimenta el "hace cuánto está acá" del
@@ -486,6 +506,7 @@ export const leadActividades = pgTable("lead_actividades", {
 
 export type Lead = typeof leads.$inferSelect;
 export type OrigenNegocio = typeof origenesNegocio.$inferSelect;
+export type Campana = typeof campanas.$inferSelect;
 export type LeadActividad = typeof leadActividades.$inferSelect;
 
 // ---------------------------------------------------------------------------

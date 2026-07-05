@@ -24,6 +24,7 @@ import { calcularVencimiento } from "../lib/vencimientos";
 import { hoyISO } from "../lib/fechas";
 import { configuracion } from "./schema";
 import {
+  campanas,
   categoriasGasto,
   gastos,
   leadDisciplinas,
@@ -854,6 +855,20 @@ async function main() {
     from origenes_negocio o
     where lower(leads.fuente) = lower(o.nombre)
       and leads.origen_negocio_id is null
+  `);
+
+  // Campañas de captación (filtros por campaña): dos campañas de ejemplo y
+  // los leads que entraron por Meta Ads repartidos entre ellas (idempotente).
+  await db
+    .insert(campanas)
+    .values([{ nombre: "Pole julio" }, { nombre: "Promo salsa" }])
+    .onConflictDoNothing();
+  await db.execute(sql`
+    update leads set campana_id = c.id
+    from campanas c
+    where c.nombre = 'Pole julio'
+      and leads.telefono = '381 555 3002'
+      and leads.campana_id is null
   `);
 
   // Plantillas de WhatsApp (editables en Configuración): interesados y recontacto.

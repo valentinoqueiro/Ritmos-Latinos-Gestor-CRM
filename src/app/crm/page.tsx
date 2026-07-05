@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { asc, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import {
+  campanas,
   configuracion,
   disciplinas,
   horarios,
@@ -34,8 +35,15 @@ export const metadata: Metadata = { title: "CRM" };
 // solo arrastra y dispara acciones validadas en backend.
 export default async function PaginaCrm() {
   const usuario = await requerirSeccion("crm");
-  const [todos, sedes, catalogoDisciplinas, origenes, listaHorarios, filas] =
-    await Promise.all([
+  const [
+    todos,
+    sedes,
+    catalogoDisciplinas,
+    origenes,
+    listaHorarios,
+    filas,
+    catalogoCampanas,
+  ] = await Promise.all([
       db.query.leads.findMany({ orderBy: desc(leads.creadoEn) }),
       sedesVisibles(usuario),
       db.query.disciplinas.findMany({
@@ -66,6 +74,7 @@ export default async function PaginaCrm() {
           CLAVE_MENSAJE_INTERESADOS,
         ]),
       }),
+      db.query.campanas.findMany({ orderBy: asc(campanas.nombre) }),
     ]);
 
   const interesesDeLeads =
@@ -112,6 +121,8 @@ export default async function PaginaCrm() {
         sede: nombreSede(i.sedeId),
       })),
       origen: origenDe(lead.origenNegocioId),
+      campana:
+        catalogoCampanas.find((c) => c.id === lead.campanaId)?.nombre ?? null,
       viaApi: lead.origen === "api" ? (lead.fuente ?? "API") : null,
       diasEnEtapa: diasEnEtapa(lead.etapaDesde, ahora),
       frio: esLeadFrio(lead.estado, lead.etapaDesde, ahora, umbralFrio),

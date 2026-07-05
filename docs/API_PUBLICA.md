@@ -55,9 +55,10 @@ Alcance requerido: `leads:write`. El lead entra al pipeline del CRM como **"nuev
 {
   "nombre": "Lucía Fernández",
   "telefono": "+543815551234",
-  "fuente": "Meta Ads - campaña julio",
+  "fuente": "n8n-meta-leads",
   "disciplinas": ["Pole Sport"],
   "origenNegocio": "Meta Ads",
+  "campana": "Pole julio",
   "email": "lucia@mail.com",
   "nota": "Preguntó por Pole Sport en Instagram"
 }
@@ -70,6 +71,7 @@ Alcance requerido: `leads:write`. El lead entra al pipeline del CRM como **"nuev
 | `fuente` | string | sí | identifica el sistema/origen externo, 2 a 80 caracteres |
 | `disciplinas` | string[] | no | nombres del catálogo (case-insensitive). **Derivan la sede del lead**; un nombre desconocido devuelve 400 con la lista de válidos |
 | `origenNegocio` | string | no | de dónde vino el interesado: "Meta Ads", "Instagram", "Web", "Referido"… (catálogo configurable; desconocido = 400 con los válidos) |
+| `campana` | string | no | campaña de captación (ej. el nombre de la campaña de Meta Lead Ads), 2 a 120 caracteres. **No hay catálogo que precargar**: una campaña nueva se registra sola con el primer lead que la trae (se reusa case-insensitive). Sin campaña = orgánico |
 | `email` | string | no | email de contacto |
 | `nota` | string | no | hasta 300 caracteres |
 | `sedeInteresId` | number | no | **OBSOLETO**: la sede se deriva de `disciplinas`. Se sigue aceptando por compatibilidad |
@@ -107,6 +109,7 @@ Alcance requerido: `leads:read`. Devuelve el pipeline completo del CRM en solo l
 |---|---|
 | `estado` | `nuevo`, `contactado`, `prueba_agendada`, `convertido`, `perdido` |
 | `desde` | `YYYY-MM-DD` — solo leads creados desde esa fecha |
+| `campana` | nombre de campaña (case-insensitive) — solo leads de esa campaña; desconocida = lista vacía |
 
 **Respuesta (200):**
 
@@ -121,8 +124,9 @@ Alcance requerido: `leads:read`. Devuelve el pipeline completo del CRM en solo l
       "estado": "nuevo",
       "etapaDesde": "2026-07-04T18:00:00.000Z",
       "origen": "api",
-      "fuente": "Meta Ads - campaña julio",
+      "fuente": "n8n-meta-leads",
       "origenNegocio": "Meta Ads",
+      "campana": "Pole julio",
       "disciplinas": [{ "id": 6, "nombre": "Pole Sport", "sedeId": 2 }],
       "sedeIds": [2],
       "pruebaFecha": null,

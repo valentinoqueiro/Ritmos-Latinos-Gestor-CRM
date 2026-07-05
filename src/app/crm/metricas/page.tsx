@@ -3,6 +3,7 @@ import Link from "next/link";
 import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import {
+  campanas,
   configuracion,
   disciplinas,
   leadDisciplinas,
@@ -129,14 +130,16 @@ function Barras({
 
 export default async function PaginaMetricasCrm() {
   const usuario = await requerirSeccion("crm");
-  const [todos, sedes, origenes, filaUmbral] = await Promise.all([
-    db.query.leads.findMany(),
-    sedesVisibles(usuario),
-    db.query.origenesNegocio.findMany({ orderBy: asc(origenesNegocio.id) }),
-    db.query.configuracion.findFirst({
-      where: eq(configuracion.clave, CLAVE_UMBRAL_LEAD_FRIO),
-    }),
-  ]);
+  const [todos, sedes, origenes, filaUmbral, catalogoCampanas] =
+    await Promise.all([
+      db.query.leads.findMany(),
+      sedesVisibles(usuario),
+      db.query.origenesNegocio.findMany({ orderBy: asc(origenesNegocio.id) }),
+      db.query.configuracion.findFirst({
+        where: eq(configuracion.clave, CLAVE_UMBRAL_LEAD_FRIO),
+      }),
+      db.query.campanas.findMany({ orderBy: asc(campanas.nombre) }),
+    ]);
   const intereses =
     todos.length === 0
       ? []
@@ -159,9 +162,14 @@ export default async function PaginaMetricasCrm() {
     todos.map((l) => ({
       estado: l.estado,
       origen: origenDe(l.origenNegocioId),
+      campana:
+        catalogoCampanas.find((c) => c.id === l.campanaId)?.nombre ?? null,
       disciplinas: intereses.filter((i) => i.leadId === l.id),
     })),
   );
+  // La comparación de campañas solo aparece cuando hay campañas: sin anuncios
+  // corriendo sería una sección de una sola fila "Orgánico" (ruido).
+  const hayCampanas = metricas.porCampana.some((f) => f.clave !== "Orgánico");
   const ahora = new Date();
   const frios = todos.filter((l) =>
     esLeadFrio(l.estado, l.etapaDesde, ahora, umbral),
@@ -283,6 +291,15 @@ export default async function PaginaMetricasCrm() {
           filas={metricas.porOrigen}
         />
       </div>
+      {hayCampanas ? (
+        <div className="mt-4">
+          <Barras
+            titulo="Por campaña"
+            descripcion="Qué campaña de anuncios convierte mejor («Orgánico» = leads sin campaña): la comparación para decidir dónde invertir."
+            filas={metricas.porCampana}
+          />
+        </div>
+      ) : null}
       <div className="mt-4">
         <Barras
           titulo="Por sede"
