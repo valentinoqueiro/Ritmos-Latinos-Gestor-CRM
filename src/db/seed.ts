@@ -24,6 +24,7 @@ import { configuracion } from "./schema";
 import {
   categoriasGasto,
   gastos,
+  leadDisciplinas,
   leads,
   movimientosCaja,
   pagoEntregas,
@@ -823,6 +824,26 @@ async function main() {
       },
     ]);
   }
+
+  // Disciplinas de interés de los leads y un lead frío (rediseño CRM R2):
+  // la sede del lead se deriva de la disciplina; Sofía queda quieta hace
+  // 5 días para ver la alerta de frío en el kanban.
+  const interesDe = async (telefono: string, disciplinaId: number) => {
+    const lead = await db.query.leads.findFirst({
+      where: eq(leads.telefono, telefono),
+    });
+    if (!lead) return;
+    await db
+      .insert(leadDisciplinas)
+      .values({ leadId: lead.id, disciplinaId })
+      .onConflictDoNothing();
+  };
+  await interesDe("381 555 3001", pole.id); // Sofía → Pole (Sede LS)
+  await interesDe("381 555 3005", zumba.id); // Rocío → Zumba (Sede SQ)
+  await db
+    .update(leads)
+    .set({ etapaDesde: new Date(Date.now() - 5 * 86_400_000) })
+    .where(eq(leads.telefono, "381 555 3001"));
 
   // Plantilla del mensaje de WhatsApp a interesados (editable en Configuración).
   await db

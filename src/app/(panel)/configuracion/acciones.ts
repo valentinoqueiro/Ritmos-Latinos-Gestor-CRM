@@ -18,6 +18,7 @@ import { exigirSeccion } from "@/lib/auth/guards";
 import { autorizarSede, ErrorAutorizacion } from "@/lib/auth/permissions";
 import { CLAVE_UMBRAL } from "@/lib/cobros";
 import { CLAVE_MENSAJE_INTERESADOS } from "@/lib/mensajes";
+import { CLAVE_UMBRAL_LEAD_FRIO } from "@/lib/reglas-crm";
 
 // Acciones de configuración (solo admin). Toda acción valida sección y sede
 // en el servidor y revalida las pantallas afectadas.
@@ -167,6 +168,35 @@ export async function editarCupo(formData: FormData): Promise<void> {
   await db.update(horarios).set({ cupo }).where(eq(horarios.id, id));
   revalidatePath("/configuracion");
   revalidatePath("/horarios");
+}
+
+// --- Umbral de lead frio (CRM) --------------------------------------------------
+
+export async function guardarUmbralLeadFrio(
+  _estado: EstadoAccion,
+  formData: FormData,
+): Promise<EstadoAccion> {
+  try {
+    await exigirSeccion("configuracion");
+    const dias = z.coerce
+      .number({ message: "Pone una cantidad de dias" })
+      .int("Debe ser un numero entero")
+      .min(1, "Al menos 1 dia")
+      .max(30, "Como mucho 30 dias")
+      .parse(formData.get("dias"));
+    await db
+      .insert(configuracion)
+      .values({ clave: CLAVE_UMBRAL_LEAD_FRIO, valor: String(dias) })
+      .onConflictDoUpdate({
+        target: configuracion.clave,
+        set: { valor: String(dias) },
+      });
+    revalidatePath("/configuracion");
+    revalidatePath("/crm");
+    return { ok: true };
+  } catch (error) {
+    return mensajeDeError(error);
+  }
 }
 
 // --- Mensaje a interesados (plantilla de WhatsApp del mostrador) ---------------

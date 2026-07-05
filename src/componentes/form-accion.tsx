@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 
 type Estado = { error?: string; ok?: boolean };
 type Accion = (estado: Estado, formData: FormData) => Promise<Estado>;
@@ -13,6 +13,7 @@ export function FormAccion({
   textoEnviando = "Guardando…",
   className,
   variante = "primario",
+  alCompletar,
   children,
 }: {
   accion: Accion;
@@ -20,9 +21,15 @@ export function FormAccion({
   textoEnviando?: string;
   className?: string;
   variante?: "primario" | "secundario" | "peligro";
+  // Aviso de éxito para el padre (ej.: cerrar el modal que contiene el form).
+  alCompletar?: () => void;
   children?: React.ReactNode;
 }) {
   const [estado, despachar, pendiente] = useActionState(accion, {});
+  useEffect(() => {
+    if (estado.ok) alCompletar?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [estado]);
   const estilosBoton =
     variante === "primario"
       ? "bg-marca text-white hover:bg-marca-oscuro"

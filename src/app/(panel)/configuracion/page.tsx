@@ -9,11 +9,19 @@ import {
   CLAVE_MENSAJE_INTERESADOS,
   MENSAJE_INTERESADOS_DEFAULT,
 } from "@/lib/mensajes";
+import {
+  CLAVE_UMBRAL_LEAD_FRIO,
+  UMBRAL_LEAD_FRIO_DEFAULT,
+} from "@/lib/reglas-crm";
 import { sedesVisibles } from "@/lib/sedes";
 import { Campo, claseInput, Input } from "@/componentes/campos";
 import { EncabezadoSeccion } from "@/componentes/encabezado";
 import { FormAccion } from "@/componentes/form-accion";
-import { guardarMensajeInteresados, guardarUmbral } from "./acciones";
+import {
+  guardarMensajeInteresados,
+  guardarUmbral,
+  guardarUmbralLeadFrio,
+} from "./acciones";
 import { alternarCategoria, crearCategoria } from "../gastos/acciones";
 import { categoriasGasto } from "@/db/schema";
 
@@ -27,7 +35,7 @@ const ETIQUETA_ROL: Record<string, string> = {
 
 export default async function PaginaConfiguracion() {
   const usuario = await requerirSeccion("configuracion");
-  const [sedes, listaUsuarios, umbral, categorias, filaMensaje] =
+  const [sedes, listaUsuarios, umbral, categorias, filaMensaje, filaUmbralFrio] =
     await Promise.all([
       sedesVisibles(usuario),
       db.query.usuarios.findMany({ orderBy: asc(usuarios.nombre) }),
@@ -38,8 +46,12 @@ export default async function PaginaConfiguracion() {
       db.query.configuracion.findFirst({
         where: eq(configuracion.clave, CLAVE_MENSAJE_INTERESADOS),
       }),
+      db.query.configuracion.findFirst({
+        where: eq(configuracion.clave, CLAVE_UMBRAL_LEAD_FRIO),
+      }),
     ]);
   const mensajeInteresados = filaMensaje?.valor ?? MENSAJE_INTERESADOS_DEFAULT;
+  const umbralFrio = Number(filaUmbralFrio?.valor) || UMBRAL_LEAD_FRIO_DEFAULT;
   const nombreSede = (sedeId: number | null) =>
     sedes.find((s) => s.id === sedeId)?.nombre ?? "Todas";
 
@@ -137,6 +149,31 @@ export default async function PaginaConfiguracion() {
               inputMode="numeric"
               required
               defaultValue={umbral}
+              className="w-24"
+            />
+          </Campo>
+        </FormAccion>
+      </section>
+
+      <section className="mt-8 max-w-md tarjeta p-4">
+        <h2 className="font-semibold">Aviso de lead frío (CRM)</h2>
+        <p className="mt-1 text-sm text-tinta-suave">
+          Cuántos días puede estar un interesado sin cambiar de etapa antes de
+          marcarse como frío en el CRM (hoy: {umbralFrio}{" "}
+          {umbralFrio === 1 ? "día" : "días"}).
+        </p>
+        <FormAccion
+          accion={guardarUmbralLeadFrio}
+          textoBoton="Guardar"
+          variante="secundario"
+          className="mt-3 flex items-end gap-3"
+        >
+          <Campo etiqueta="Días sin moverse">
+            <Input
+              name="dias"
+              inputMode="numeric"
+              required
+              defaultValue={umbralFrio}
               className="w-24"
             />
           </Campo>

@@ -5,7 +5,14 @@ import { redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
-import { alumnos, horarios, leadActividades, leads } from "@/db/schema";
+import {
+  alumnos,
+  horarios,
+  leadActividades,
+  leadDisciplinas,
+  leads,
+  origenesNegocio,
+} from "@/db/schema";
 import { exigirSeccion } from "@/lib/auth/guards";
 import { ErrorAutorizacion } from "@/lib/auth/permissions";
 import { formatoFecha, hoyISO } from "@/lib/fechas";
@@ -66,12 +73,14 @@ async function avanzarEstado(
     });
   });
   revalidatePath("/crm");
+  revalidatePath(`/crm/${leadId}`);
   revalidatePath("/dashboard");
   return { ok: true };
 }
 
 // --- Alta manual ---------------------------------------------------------------
 
+// La sede ya no se pide: se deriva de las disciplinas de interés (rediseño CRM).
 const esquemaLead = z.object({
   nombre: z.string().trim().min(2, "Poné el nombre"),
   telefono: z
@@ -84,10 +93,11 @@ const esquemaLead = z.object({
     .trim()
     .transform((v) => (v === "" ? null : v))
     .pipe(z.string().email("El email no parece válido").nullable()),
-  sedeInteresId: z
-    .string()
-    .transform((v) => (v === "" ? null : Number(v)))
-    .pipe(z.number().int().positive().nullable()),
+  disciplinaIds: z.array(z.coerce.number().int().positive()),
+  origenNegocioId: z.preprocess(
+    (v) => (v === "" || v === null ? null : v),
+    z.coerce.number().int().positive().nullable(),
+  ),
   nota: z
     .string()
     .trim()
@@ -105,12 +115,155 @@ export async function crearLead(
       nombre: formData.get("nombre"),
       telefono: formData.get("telefono"),
       email: formData.get("email") ?? "",
-      sedeInteresId: formData.get("sedeInteresId") ?? "",
+      disciplinaIds: formData.getAll("disciplinaIds"),
+      origenNegocioId: formData.get("origenNegocioId") ?? "",
       nota: formData.get("nota") ?? "",
     });
-    await db.insert(leads).values({ ...datos, origen: "manual" });
+    const { disciplinaIds, ...ficha } = datos;
+    await db.transaction(async (tx) => {
+      const [lead] = await tx
+        .insert(leads)
+        .values({ ...ficha, origen: "manual" })
+        .returning();
+      if (disciplinaIds.length > 0) {
+        await tx.insert(leadDisciplinas).values(
+          disciplinaIds.map((disciplinaId) => ({
+            leadId: lead.id,
+            disciplinaId,
+          })),
+        );
+      }
+    });
     revalidatePath("/crm");
     revalidatePath("/dashboard");
+    return { ok: true };
+  } catch (error) {
+    return mensajeDeError(error);
+  }
+}
+
+/**
+ * Movimiento directo del kanban entre etapas SIN formulario: contactado y
+ * nuevo (retrocesos incluidos). Agendar prueba, perder y convertir tienen
+ * sus propias acciones porque piden datos.
+ */
+export async function moverLead(
+  _estado: EstadoAccion,
+  formData: FormData,
+): Promise<EstadoAccion> {
+  try {
+    const usuario = await exigirSeccion("crm");
+    const datos = z
+      .object({
+        leadId: z.coerce.number().int().positive(),
+        destino: z.enum(["nuevo", "contactado"]),
+      })
+      .parse({
+        leadId: formData.get("leadId"),
+        destino: formData.get("destino"),
+      });
+    return await avanzarEstado(
+      datos.leadId,
+      datos.destino,
+      {},
+      { usuarioId: usuario.id },
+    );
+  } catch (error) {
+    return mensajeDeError(error);
+  }
+}
+
+/** Nota manual de seguimiento en el historial del lead (con canal). */
+export async function agregarNota(
+  _estado: EstadoAccion,
+  formData: FormData,
+): Promise<EstadoAccion> {
+  try {
+    const usuario = await exigirSeccion("crm");
+    const datos = z
+      .object({
+        leadId: z.coerce.number().int().positive(),
+        canal: z.enum(["whatsapp", "llamada", "presencial", "otro"]),
+        detalle: z
+          .string()
+          .trim()
+          .min(2, "Contá qué se habló")
+          .max(500, "La nota es muy larga"),
+      })
+      .parse({
+        leadId: formData.get("leadId"),
+        canal: formData.get("canal"),
+        detalle: formData.get("detalle"),
+      });
+    const lead = await cargarLead(datos.leadId);
+    if (!lead) return { error: "El lead no existe" };
+    await db.insert(leadActividades).values({
+      leadId: lead.id,
+      tipo: "nota",
+      canal: datos.canal,
+      detalle: datos.detalle,
+      registradoPorId: usuario.id,
+    });
+    revalidatePath(`/crm/${lead.id}`);
+    revalidatePath("/crm");
+    return { ok: true };
+  } catch (error) {
+    return mensajeDeError(error);
+  }
+}
+
+/**
+ * Disciplinas de interés y origen de negocio del lead (editable en la ficha:
+ * así la admin clasifica los leads que llegaron "sin disciplina").
+ */
+export async function guardarInteresesLead(
+  _estado: EstadoAccion,
+  formData: FormData,
+): Promise<EstadoAccion> {
+  try {
+    await exigirSeccion("crm");
+    const datos = z
+      .object({
+        leadId: z.coerce.number().int().positive(),
+        disciplinaIds: z.array(z.coerce.number().int().positive()),
+        origenNegocioId: z.preprocess(
+          (v) => (v === "" || v === null ? null : v),
+          z.coerce.number().int().positive().nullable(),
+        ),
+      })
+      .parse({
+        leadId: formData.get("leadId"),
+        disciplinaIds: formData.getAll("disciplinaIds"),
+        origenNegocioId: formData.get("origenNegocioId") ?? "",
+      });
+    const lead = await cargarLead(datos.leadId);
+    if (!lead) return { error: "El lead no existe" };
+    if (datos.origenNegocioId) {
+      const origen = await db.query.origenesNegocio.findFirst({
+        where: eq(origenesNegocio.id, datos.origenNegocioId),
+      });
+      if (!origen) return { error: "El origen no existe" };
+    }
+    await db.transaction(async (tx) => {
+      await tx
+        .update(leads)
+        .set({
+          origenNegocioId: datos.origenNegocioId,
+          actualizadoEn: new Date(),
+        })
+        .where(eq(leads.id, lead.id));
+      await tx.delete(leadDisciplinas).where(eq(leadDisciplinas.leadId, lead.id));
+      if (datos.disciplinaIds.length > 0) {
+        await tx.insert(leadDisciplinas).values(
+          datos.disciplinaIds.map((disciplinaId) => ({
+            leadId: lead.id,
+            disciplinaId,
+          })),
+        );
+      }
+    });
+    revalidatePath(`/crm/${lead.id}`);
+    revalidatePath("/crm");
     return { ok: true };
   } catch (error) {
     return mensajeDeError(error);
