@@ -2,6 +2,14 @@
 
 > Registro de cambios del sistema de gestión. Cada sesión de trabajo agrega su entrada al cierre: fecha, fase, qué se hizo, decisiones tomadas y pendientes que quedaron.
 
+## 2026-07-04 — Fix crítico: "Algo salió mal" por conexión muerta de Neon
+
+**Hecho:**
+- **Causa raíz** del error genérico intermitente en TODA la app (mover/retroceder card, agendar prueba, crear interesado, y cualquier server action): el `pg.Pool` a nivel de módulo guardaba conexiones que Neon (free tier) **cortaba al suspender el compute** tras ~5 min de inactividad. Un lambda de Vercel "congelado" revivía y reusaba una conexión muerta → la primera query fallaba (`Connection terminated unexpectedly` / `ECONNRESET`) → caía en `mensajeDeError` → "Algo salió mal". Los tests nunca lo veían porque mantienen la base caliente; el "a veces guarda, a veces no" era según muriera la conexión antes o después del commit.
+- **Fix (sin cambiar de driver, anda igual local y en Neon):** cliente de base **auto-sanable** (`src/db/resiliencia.ts`). `pool.on('error')` (obligatorio en node-pg para no tumbar el proceso con errores de clientes ociosos); `keepAlive`, `idleTimeoutMillis`, `maxUses` y `connectionTimeoutMillis` acordes a Neon. Lo central: se envuelven `pool.query` (reintenta la primera query si la conexión estaba muerta; pg ya descartó la muerta, el reintento toma una fresca que despierta a Neon) y `pool.connect` (valida con `SELECT 1` ANTES de dársela a una transacción y descarta la muerta) — un timeout solo no alcanza porque el freeze del lambda congela los timers.
+- **Verificado:** test de integración real contra `gestor_dev` que **mata todas las conexiones del backend** (simula el suspend de Neon) y confirma que query suelta y transacción se auto-sanan sin error. 10 tests unitarios nuevos de `esErrorDeConexion` y del wrapper (reintenta conexión / NO reintenta errores de datos). Suite completa 122 verde, typecheck y build de producción OK.
+- **Criterio de aceptación:** dejar el sistema quieto ~10 min y operar sin ver "Algo salió mal".
+
 ## 2026-07-04 — Rediseño CRM · R5: métricas + pase de diseño (cierre del rediseño)
 
 **Hecho:**
