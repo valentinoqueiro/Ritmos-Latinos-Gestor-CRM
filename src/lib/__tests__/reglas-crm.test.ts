@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { diasEnEtapa, esLeadFrio, sedesDeInteres } from "../reglas-crm";
+import {
+  diasEnEtapa,
+  esLeadFrio,
+  metricasDeLeads,
+  sedesDeInteres,
+} from "../reglas-crm";
 
 describe("sedesDeInteres (la sede se DERIVA de las disciplinas)", () => {
   it("una disciplina: la sede de esa disciplina", () => {
@@ -54,5 +59,57 @@ describe("esLeadFrio (umbral de días sin cambiar de etapa)", () => {
   it("los estados finales nunca son fríos (ya tuvieron desenlace)", () => {
     expect(esLeadFrio("convertido", hace5dias, ahora, 3)).toBe(false);
     expect(esLeadFrio("perdido", hace5dias, ahora, 3)).toBe(false);
+  });
+});
+
+describe("metricasDeLeads (métricas del CRM, R5)", () => {
+  const pole = { nombre: "Pole", sedeId: 2 };
+  const jazz = { nombre: "Jazz", sedeId: 1 };
+
+  it("un lead con dos disciplinas cuenta en ambas (y en ambas sedes)", () => {
+    const m = metricasDeLeads([
+      { estado: "convertido", origen: "Meta Ads", disciplinas: [pole, jazz] },
+    ]);
+    expect(m.porDisciplina.map((f) => f.clave).sort()).toEqual(["Jazz", "Pole"]);
+    expect(m.porDisciplina.every((f) => f.convertidos === 1)).toBe(true);
+    expect(m.porSede.map((f) => f.sedeId).sort()).toEqual([1, 2]);
+  });
+
+  it("tasa por dimensión: convertidos sobre cerrados; null sin desenlaces", () => {
+    const m = metricasDeLeads([
+      { estado: "convertido", origen: "Instagram", disciplinas: [pole] },
+      { estado: "perdido", origen: "Instagram", disciplinas: [pole] },
+      { estado: "nuevo", origen: "Web", disciplinas: [jazz] },
+    ]);
+    expect(m.porOrigen.find((f) => f.clave === "Instagram")?.tasa).toBe(0.5);
+    expect(m.porOrigen.find((f) => f.clave === "Web")?.tasa).toBeNull();
+    expect(m.tasaGlobal).toBe(0.5);
+  });
+
+  it("sin disciplina: fuera de disciplina/sede pero contado y visible", () => {
+    const m = metricasDeLeads([
+      { estado: "nuevo", origen: null, disciplinas: [] },
+      { estado: "contactado", origen: "Mostrador", disciplinas: [pole] },
+    ]);
+    expect(m.sinDisciplina).toBe(1);
+    expect(m.porDisciplina).toHaveLength(1);
+    expect(m.porEtapa.nuevo).toBe(1);
+  });
+
+  it("sin origen agrupa como 'Sin clasificar' (visible, no desaparece)", () => {
+    const m = metricasDeLeads([
+      { estado: "nuevo", origen: null, disciplinas: [pole] },
+    ]);
+    expect(m.porOrigen[0]?.clave).toBe("Sin clasificar");
+  });
+
+  it("ordena por total descendente", () => {
+    const m = metricasDeLeads([
+      { estado: "nuevo", origen: "Web", disciplinas: [jazz] },
+      { estado: "nuevo", origen: "Meta Ads", disciplinas: [pole] },
+      { estado: "nuevo", origen: "Meta Ads", disciplinas: [pole] },
+    ]);
+    expect(m.porOrigen[0]?.clave).toBe("Meta Ads");
+    expect(m.porDisciplina[0]?.clave).toBe("Pole");
   });
 });

@@ -147,6 +147,23 @@ export function IconoInteresados(p: Props) {
   );
 }
 
+export function IconoFrio(p: Props) {
+  return (
+    <Svg {...p}>
+      <path d="M12 3v18M5 6.5 19 17.5M19 6.5 5 17.5" />
+      <path d="M12 3 9.8 5.2M12 3l2.2 2.2M12 21l-2.2-2.2M12 21l2.2-2.2" />
+    </Svg>
+  );
+}
+
+export function IconoCerrar(p: Props) {
+  return (
+    <Svg {...p}>
+      <path d="M6 6l12 12M18 6 6 18" />
+    </Svg>
+  );
+}
+
 export function IconoNavPorNombre({
   nombre,
   className,

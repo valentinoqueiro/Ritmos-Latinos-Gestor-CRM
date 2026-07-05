@@ -45,7 +45,7 @@ Pedidas por el cliente después de la Fase 7; todas ✅ terminadas, verificadas 
 
 ### Rediseño del CRM (fases R1–R5, aprobado 2026-07-04)
 
-El CRM evoluciona a un pipeline kanban con disciplinas de interés (la sede se DERIVA de la disciplina), historial de actividad, alerta de lead frío, retención "a recontactar" dentro del CRM y métricas por disciplina/sede/origen. Plan detallado y decisiones del cliente en el documento del rediseño; reglas de ejecución: una fase por vez, con freno para revisión.
+El CRM evoluciona a un pipeline kanban con disciplinas de interés (la sede se DERIVA de la disciplina), historial de actividad, alerta de lead frío, retención "a recontactar" dentro del CRM y métricas por disciplina/sede/origen. Plan detallado y decisiones del cliente en el documento del rediseño; ejecutado una fase por vez con revisión del cliente. **Rediseño completo el 2026-07-04.**
 
 | # | Fase | Estado | Fecha |
 |---|------|--------|-------|
@@ -53,7 +53,7 @@ El CRM evoluciona a un pipeline kanban con disciplinas de interés (la sede se D
 | R2 | Kanban + ficha del lead + alerta de frío (admin) | ✅ Terminada | 2026-07-04 |
 | R3 | Captura evolucionada (secretaria) + API v1 (GET /leads) | ✅ Terminada | 2026-07-04 |
 | R4 | Retención en el CRM + conversión enriquecida | ✅ Terminada | 2026-07-04 |
-| R5 | Métricas del CRM + verificación e2e + cierre | ⬜ Pendiente | — |
+| R5 | Métricas del CRM + verificación e2e + cierre | ✅ Terminada | 2026-07-04 |
 
 ---
 

@@ -2,6 +2,17 @@
 
 > Registro de cambios del sistema de gestión. Cada sesión de trabajo agrega su entrada al cierre: fecha, fase, qué se hizo, decisiones tomadas y pendientes que quedaron.
 
+## 2026-07-04 — Rediseño CRM · R5: métricas + pase de diseño (cierre del rediseño)
+
+**Hecho:**
+- Tercera pestaña del CRM: **Métricas** (`/crm/metricas`, solo admin). KPIs del embudo (abiertos, fríos ahora, convertidos/perdidos, conversión global), embudo por etapa y barras con etiquetado directo por **disciplina**, **origen** y **sede derivada** (un lead con dos disciplinas cuenta en ambas — criterio explícito). Cada gráfico tiene su «Ver como tabla» (accesibilidad) y números tabulares. Lógica pura testeada (`metricasDeLeads` en `reglas-crm.ts`): tasas por dimensión, «Sin clasificar» visible, orden por total.
+- El contador de **«sin disciplina» es visible y accionable** (decisión del cliente): chip en Métricas que lleva al pipeline a clasificarlos + filtro en el kanban.
+- **Pase de diseño con la skill ui-ux-pro-max** sobre lo existente (manteniendo la identidad de marca — la skill sugería otra paleta/tipografía, pero la consistencia de marca manda): foco visible con color de marca y `prefers-reduced-motion` globales; íconos SVG en lugar de glifos (frío ❄→SVG, cerrar ✕→SVG, ★ eliminado); tipografía mínima 12px en chips; touch targets ampliados en las tarjetas del kanban; contrastes subidos en el tablero oscuro; pestañas del CRM en fila propia en móvil.
+- Fix del seed: los leads semilla ahora clasifican su origen de negocio por `fuente` (mismo criterio que el backfill de la migración).
+- Verificación e2e del **recorrido completo**: captura en mostrador (secretaria, con disciplina) → kanban → contactado → prueba agendada → conversión con alta encadenada y sugerencia de plan → pérdida con motivo → métricas con números verificados a mano (conversión 33 %, Zumba 100 %, Mostrador 3 leads · 50 %, 4 sin disciplina). Permisos por URL re-verificados (secretaria y owner bloqueados).
+
+**El rediseño del CRM (R1–R5) queda completo y en producción.**
+
 ## 2026-07-04 — Rediseño CRM · R4: retención «A recontactar» + conversión enriquecida
 
 **Hecho:**

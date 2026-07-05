@@ -166,3 +166,21 @@ body {
 }
 
 } /* @layer components */
+
+/* --- Accesibilidad transversal (skill ui-ux-pro-max, R5) -------------------
+ * Foco visible con la marca en cualquier fondo, y respeto por la preferencia
+ * de menos movimiento del sistema. */
+:focus-visible {
+  outline: 2px solid var(--color-marca);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -50,7 +50,7 @@ function Fila({
             {cobro.alumno}
           </Link>
           {cobro.saldoPendiente > 0 ? (
-            <span className="rounded-full bg-marca-suave px-2 py-0.5 text-[11px] font-semibold text-marca-oscuro">
+            <span className="rounded-full bg-marca-suave px-2 py-0.5 text-xs font-semibold text-marca-oscuro">
               debe {formatoMonto(cobro.saldoPendiente)}
             </span>
           ) : null}

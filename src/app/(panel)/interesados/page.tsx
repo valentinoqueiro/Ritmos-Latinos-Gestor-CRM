@@ -180,7 +180,7 @@ export default async function PaginaInteresados() {
                           .map((i) => (
                             <span
                               key={i.nombre}
-                              className="rounded-full bg-fondo px-2 py-0.5 text-[11px] font-medium text-tinta-suave ring-1 ring-borde"
+                              className="rounded-full bg-fondo px-2 py-0.5 text-xs font-medium text-tinta-suave ring-1 ring-borde"
                             >
                               {i.nombre}
                             </span>

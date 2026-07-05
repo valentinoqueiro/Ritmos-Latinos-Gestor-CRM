@@ -111,8 +111,8 @@ export default async function PaginaSuscribir({
                       <p className="font-semibold">
                         {plan.nombre}
                         {esSugerido(plan) ? (
-                          <span className="ml-2 rounded-full bg-marca-suave px-2 py-0.5 text-[11px] font-semibold text-marca-oscuro">
-                            ★ le interesaba
+                          <span className="ml-2 rounded-full bg-marca-suave px-2 py-0.5 text-xs font-semibold text-marca-oscuro">
+                            le interesaba
                           </span>
                         ) : null}
                       </p>

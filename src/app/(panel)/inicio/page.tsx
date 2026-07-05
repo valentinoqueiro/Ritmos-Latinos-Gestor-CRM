@@ -41,7 +41,7 @@ function ListaCorta({ cobros }: { cobros: CobroDeSuscripcion[] }) {
                 {c.alumno}
               </Link>
               {c.saldoPendiente > 0 ? (
-                <span className="shrink-0 rounded-full bg-marca-suave px-2 py-0.5 text-[11px] font-semibold text-marca-oscuro">
+                <span className="shrink-0 rounded-full bg-marca-suave px-2 py-0.5 text-xs font-semibold text-marca-oscuro">
                   debe {formatoMonto(c.saldoPendiente)}
                 </span>
               ) : null}
@@ -264,7 +264,7 @@ export default async function PaginaInicio() {
                           {formatoHora(d.hora)} hs
                         </span>
                         <span
-                          className={`ml-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                          className={`ml-1.5 rounded-full px-2 py-0.5 text-xs font-semibold ${
                             d.motivo === "vencida"
                               ? "bg-marca-suave text-marca-oscuro"
                               : "bg-alerta/10 text-alerta"

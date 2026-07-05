@@ -8,13 +8,14 @@ import { usePathname } from "next/navigation";
 const PESTANAS = [
   { href: "/crm", etiqueta: "Pipeline" },
   { href: "/crm/recontactar", etiqueta: "A recontactar" },
+  { href: "/crm/metricas", etiqueta: "Métricas" },
 ];
 
 export function PestanasCrm() {
   const pathname = usePathname();
   const activa = (href: string) =>
     href === "/crm"
-      ? !pathname.startsWith("/crm/recontactar")
+      ? !PESTANAS.slice(1).some((p) => pathname.startsWith(p.href))
       : pathname.startsWith(href);
 
   return (

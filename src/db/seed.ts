@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { and, count, desc, eq, isNull } from "drizzle-orm";
+import { and, count, desc, eq, isNull, sql } from "drizzle-orm";
 import { db } from "./index";
 import {
   alumnos,
@@ -846,6 +846,15 @@ async function main() {
     .update(leads)
     .set({ etapaDesde: new Date(Date.now() - 5 * 86_400_000) })
     .where(eq(leads.telefono, "381 555 3001"));
+
+  // Clasificar el origen de negocio de los leads semilla por su fuente
+  // (mismo criterio que el backfill de la migración 0008; idempotente).
+  await db.execute(sql`
+    update leads set origen_negocio_id = o.id
+    from origenes_negocio o
+    where lower(leads.fuente) = lower(o.nombre)
+      and leads.origen_negocio_id is null
+  `);
 
   // Plantillas de WhatsApp (editables en Configuración): interesados y recontacto.
   await db

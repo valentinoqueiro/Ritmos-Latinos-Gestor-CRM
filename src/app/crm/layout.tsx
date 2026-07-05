@@ -15,7 +15,7 @@ export default async function CrmLayout({
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="sticky top-0 z-20 border-b-2 border-marca bg-tinta/90 text-white backdrop-blur-xl">
-        <div className="mx-auto flex h-14 w-full max-w-[1600px] items-center gap-3 px-4 md:px-6">
+        <div className="mx-auto flex w-full max-w-[1600px] flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5 md:px-6">
           <Link href="/crm" className="flex items-center gap-2.5">
             <span className="flex h-8 w-9 items-center justify-center rounded-lg bg-white">
               <Image
@@ -30,7 +30,9 @@ export default async function CrmLayout({
               CRM <span className="text-marca">Ritmos</span>
             </p>
           </Link>
-          <PestanasCrm />
+          <div className="order-last w-full sm:order-none sm:w-auto">
+            <PestanasCrm />
+          </div>
 
           <div className="ml-auto flex items-center gap-2">
             <Link

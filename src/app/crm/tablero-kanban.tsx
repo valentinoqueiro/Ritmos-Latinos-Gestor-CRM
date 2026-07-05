@@ -21,6 +21,7 @@ import {
   type EstadoLead,
 } from "@/lib/reglas-leads";
 import { Campo, Input, Select } from "@/componentes/campos";
+import { IconoCerrar, IconoFrio } from "@/componentes/iconos";
 import { FormAccion } from "@/componentes/form-accion";
 import { agendarPrueba, crearLead, marcarPerdido, moverLead } from "./acciones";
 
@@ -64,23 +65,24 @@ function ContenidoTarjeta({ lead }: { lead: LeadDeTablero }) {
         </p>
         {lead.frio ? (
           <span
-            className="shrink-0 rounded-full bg-alerta/15 px-2 py-0.5 text-[11px] font-bold text-alerta"
+            className="flex shrink-0 items-center gap-1 rounded-full bg-alerta/15 px-2 py-0.5 text-xs font-bold text-alerta"
             title={`Sin moverse hace ${lead.diasEnEtapa} días`}
           >
-            ❄ frío
+            <IconoFrio className="h-3.5 w-3.5" aria-hidden />
+            frío
           </span>
         ) : null}
       </div>
       <div className="mt-1.5 flex flex-wrap gap-1">
         {lead.disciplinas.length === 0 ? (
-          <span className="rounded-full bg-alerta/10 px-2 py-0.5 text-[11px] font-medium text-alerta">
+          <span className="rounded-full bg-alerta/10 px-2 py-0.5 text-xs font-medium text-alerta">
             sin disciplina
           </span>
         ) : (
           lead.disciplinas.map((d) => (
             <span
               key={`${d.nombre}-${d.sede}`}
-              className="rounded-full bg-fondo px-2 py-0.5 text-[11px] font-medium text-tinta-suave ring-1 ring-borde"
+              className="rounded-full bg-fondo px-2 py-0.5 text-xs font-medium text-tinta-suave ring-1 ring-borde"
               title={`Sede ${d.sede}`}
             >
               {d.nombre}
@@ -89,11 +91,11 @@ function ContenidoTarjeta({ lead }: { lead: LeadDeTablero }) {
         )}
       </div>
       {lead.estado === "prueba_agendada" && lead.pruebaFecha ? (
-        <p className="mt-1.5 rounded-md bg-alerta/10 px-2 py-1 text-[11px] font-medium text-alerta">
+        <p className="mt-1.5 rounded-md bg-alerta/10 px-2 py-1 text-xs font-medium text-alerta">
           Prueba el {formatoFechaCorta(lead.pruebaFecha)}
         </p>
       ) : null}
-      <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-tinta-suave">
+      <div className="mt-2 flex items-center justify-between gap-2 text-xs text-tinta-suave">
         <span className="min-w-0 truncate">
           {lead.origen ?? "sin origen"}
           {lead.viaApi ? ` · vía ${lead.viaApi}` : ""}
@@ -135,7 +137,7 @@ function Tarjeta({
       <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-borde pt-2">
         <Link
           href={`/crm/${lead.id}`}
-          className="rounded-md px-2 py-1 text-[11px] font-semibold text-tinta transition hover:bg-fondo"
+          className="rounded-md px-2.5 py-2 text-xs font-semibold text-tinta transition hover:bg-fondo"
         >
           Ficha
         </Link>
@@ -143,14 +145,14 @@ function Tarjeta({
           href={lead.whatsapp}
           target="_blank"
           rel="noopener noreferrer"
-          className="rounded-md px-2 py-1 text-[11px] font-semibold text-ok transition hover:bg-ok/10"
+          className="rounded-md px-2.5 py-2 text-xs font-semibold text-ok transition hover:bg-ok/10"
         >
           WhatsApp
         </a>
         {destinos.length > 0 ? (
           /* Fallback táctil: mover sin arrastrar (celular). */
           <details className="ml-auto w-full sm:w-auto">
-            <summary className="cursor-pointer list-none rounded-md px-2 py-1 text-right text-[11px] font-semibold text-tinta-suave transition hover:bg-fondo">
+            <summary className="cursor-pointer list-none rounded-md px-2.5 py-2 text-right text-xs font-semibold text-tinta-suave transition hover:bg-fondo">
               Mover ▾
             </summary>
             <div className="mt-1 rounded-xl border border-borde bg-fondo p-1">
@@ -162,7 +164,7 @@ function Tarjeta({
                     (e.currentTarget.closest("details") as HTMLDetailsElement).open = false;
                     onAccion(destino, lead);
                   }}
-                  className="block w-full rounded-lg px-2.5 py-1.5 text-left text-xs font-medium transition hover:bg-fondo"
+                  className="block w-full cursor-pointer rounded-lg px-2.5 py-2.5 text-left text-xs font-medium transition hover:bg-fondo"
                 >
                   → {ETIQUETA_ESTADO_LEAD[destino]}
                 </button>
@@ -177,7 +179,7 @@ function Tarjeta({
 
 function TarjetaCerrada({ lead }: { lead: LeadDeTablero }) {
   return (
-    <li className="rounded-xl bg-white/5 p-3 text-sm text-white/80 ring-1 ring-white/10">
+    <li className="rounded-xl bg-white/5 p-3 text-sm text-white/90 ring-1 ring-white/10">
       <div className="flex items-center justify-between gap-2">
         <Link
           href={`/crm/${lead.id}`}
@@ -186,7 +188,7 @@ function TarjetaCerrada({ lead }: { lead: LeadDeTablero }) {
           {lead.nombre}
         </Link>
       </div>
-      <p className="mt-0.5 truncate text-[11px] text-white/50">
+      <p className="mt-0.5 truncate text-xs text-white/70">
         {lead.estado === "perdido"
           ? (lead.motivoPerdida ?? "sin motivo")
           : "ya es alumno"}
@@ -229,7 +231,7 @@ function Columna({
       </header>
       <ul className="flex max-h-[68vh] min-h-24 flex-1 flex-col gap-2 overflow-y-auto px-2.5 pb-3">
         {tarjetas.length === 0 ? (
-          <li className="rounded-xl border border-dashed border-white/15 px-3 py-5 text-center text-xs text-white/40">
+          <li className="rounded-xl border border-dashed border-white/15 px-3 py-5 text-center text-xs text-white/60">
             {isOver ? "Soltá acá" : "Vacío"}
           </li>
         ) : abierta ? (
@@ -268,9 +270,9 @@ function Modal({
             type="button"
             onClick={onCerrar}
             aria-label="Cerrar"
-            className="rounded-lg px-2 py-1 text-tinta-suave transition hover:bg-fondo"
+            className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-lg text-tinta-suave transition hover:bg-fondo"
           >
-            ✕
+            <IconoCerrar className="h-5 w-5" aria-hidden />
           </button>
         </div>
         <div className="mt-3">{children}</div>
@@ -413,8 +415,9 @@ export function TableroKanban({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {frios > 0 ? (
-            <span className="rounded-full bg-alerta/10 px-3 py-1.5 text-xs font-semibold text-alerta">
-              ❄ {frios} {frios === 1 ? "frío" : "fríos"} (+{umbralFrio} días quietos)
+            <span className="flex items-center gap-1 rounded-full bg-alerta/10 px-3 py-1.5 text-xs font-semibold text-alerta">
+              <IconoFrio className="h-3.5 w-3.5" aria-hidden />
+              {frios} {frios === 1 ? "frío" : "fríos"} (+{umbralFrio} días quietos)
             </span>
           ) : null}
           {sinDisciplina > 0 ? (
