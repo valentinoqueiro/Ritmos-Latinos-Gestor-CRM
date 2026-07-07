@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation";
 import {
   DndContext,
   DragOverlay,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useDraggable,
   useDroppable,
   useSensor,
@@ -133,7 +134,9 @@ function Tarjeta({
       {...attributes}
       {...listeners}
       className={`rounded-xl bg-superficie p-3 text-tinta shadow-tarjeta ring-1 ring-black/5 ${
-        arrastrable ? "cursor-grab touch-manipulation active:cursor-grabbing" : ""
+        arrastrable
+          ? "cursor-grab touch-manipulation select-none [-webkit-touch-callout:none] active:cursor-grabbing"
+          : ""
       } ${isDragging ? "opacity-30" : ""}`}
     >
       <ContenidoTarjeta lead={lead} />
@@ -167,7 +170,7 @@ function Tarjeta({
                     (e.currentTarget.closest("details") as HTMLDetailsElement).open = false;
                     onAccion(destino, lead);
                   }}
-                  className="block w-full cursor-pointer rounded-lg px-2.5 py-2.5 text-left text-xs font-medium transition hover:bg-fondo"
+                  className="block w-full cursor-pointer rounded-lg px-2.5 py-2.5 text-left text-xs font-medium transition hover:bg-superficie active:bg-superficie"
                 >
                   → {ETIQUETA_ESTADO_LEAD[destino]}
                 </button>
@@ -232,7 +235,7 @@ function Columna({
           {tarjetas.length}
         </span>
       </header>
-      <ul className="flex max-h-[68vh] min-h-24 flex-1 flex-col gap-2 overflow-y-auto px-2.5 pb-3">
+      <ul className="flex max-h-[68dvh] min-h-24 flex-1 flex-col gap-2 overflow-y-auto px-2.5 pb-3">
         {tarjetas.length === 0 ? (
           <li className="rounded-xl border border-dashed border-white/15 px-3 py-5 text-center text-xs text-white/60">
             {isOver ? "Soltá acá" : "Vacío"}
@@ -260,11 +263,13 @@ function Modal({
 }) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-tinta/60 p-4 backdrop-blur-sm sm:items-center"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-tinta/60 backdrop-blur-sm sm:items-center sm:p-4"
       onClick={onCerrar}
     >
+      {/* En el celular es una hoja pegada abajo, con scroll propio para que
+          los formularios largos no se corten con el teclado abierto. */}
       <div
-        className="w-full max-w-md rounded-2xl bg-superficie p-5 shadow-tarjeta-alta"
+        className="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-superficie p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-tarjeta-alta sm:max-h-[85dvh] sm:rounded-2xl sm:pb-5"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between gap-3">
@@ -406,8 +411,12 @@ export function TableroKanban({
   const [filtroCampana, setFiltroCampana] = useState<string | null>(null);
 
   const sensores = useSensors(
-    // Distancia mínima para no confundir taps/clicks con arrastres.
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    // Mouse: distancia mínima para no confundir clicks con arrastres.
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    // Táctil: arrastrar exige mantener apretado; el deslizar rápido queda
+    // libre para scrollear el tablero (antes cualquier swipe sobre una
+    // tarjeta arrancaba un arrastre y el tablero se volvía incontrolable).
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
   );
 
   // Opciones de filtro: solo valores presentes en el tablero (un filtro que
@@ -507,7 +516,8 @@ export function TableroKanban({
         <div>
           <h1 className="titulo-display text-4xl">Pipeline</h1>
           <p className="mt-0.5 text-sm text-tinta-suave">
-            Arrastrá las tarjetas entre etapas, o usá «Mover» desde el celular.
+            Arrastrá las tarjetas entre etapas — en el celular, mantené
+            apretada la tarjeta o usá «Mover».
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -536,7 +546,7 @@ export function TableroKanban({
           <button
             type="button"
             onClick={() => setPendiente({ tipo: "alta" })}
-            className="boton-primario"
+            className="boton-primario w-full sm:w-auto"
           >
             + Interesado
           </button>
@@ -617,7 +627,7 @@ export function TableroKanban({
       {/* El tablero: backstage oscuro, columnas de vidrio, tarjetas claras */}
       <div className="banner-seccion mt-4 p-3 sm:p-4">
         <DndContext sensors={sensores} onDragStart={alAgarrar} onDragEnd={alSoltar}>
-          <div className="relative flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1">
+          <div className="relative flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain pb-1">
             {COLUMNAS.map((estado) => (
               <Columna
                 key={estado}

@@ -24,7 +24,7 @@ export function PestanasCrm() {
         <Link
           key={p.href}
           href={p.href}
-          className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+          className={`flex-1 whitespace-nowrap rounded-full px-3 py-1.5 text-center text-xs font-semibold transition sm:flex-none ${
             activa(p.href)
               ? "bg-marca text-white shadow-boton"
               : "text-white/70 hover:text-white"

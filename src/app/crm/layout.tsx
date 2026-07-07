@@ -37,9 +37,10 @@ export default async function CrmLayout({
           <div className="ml-auto flex items-center gap-2">
             <Link
               href="/inicio"
-              className="rounded-lg border border-white/25 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/10"
+              className="rounded-lg border border-white/25 px-3 py-2 text-xs font-semibold text-white transition hover:bg-white/10"
             >
-              ← Volver al gestor
+              <span className="sm:hidden">← Gestor</span>
+              <span className="hidden sm:inline">← Volver al gestor</span>
             </Link>
             <form action={salir}>
               <button

@@ -172,22 +172,28 @@ export default async function PaginaFichaLead({
             ) : null}
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex w-full flex-wrap gap-2 sm:w-auto">
           <a
             href={whatsapp}
             target="_blank"
             rel="noopener noreferrer"
-            className="rounded-xl bg-ok px-4 py-2.5 text-sm font-semibold text-white transition hover:brightness-110"
+            className="w-full rounded-xl bg-ok px-4 py-2.5 text-center text-sm font-semibold text-white transition hover:brightness-110 sm:w-auto"
           >
             WhatsApp con mensaje
           </a>
           {puedeTransicionar(lead.estado, "convertido") ? (
-            <Link href={`/crm/${lead.id}/convertir`} className="boton-primario">
+            <Link
+              href={`/crm/${lead.id}/convertir`}
+              className="boton-primario w-full sm:w-auto"
+            >
               Convertir en alumno
             </Link>
           ) : null}
           {lead.estado === "convertido" && lead.alumnoId ? (
-            <Link href={`/alumnos/${lead.alumnoId}`} className="boton-secundario">
+            <Link
+              href={`/alumnos/${lead.alumnoId}`}
+              className="boton-secundario w-full sm:w-auto"
+            >
               Ver ficha de alumno
             </Link>
           ) : null}
