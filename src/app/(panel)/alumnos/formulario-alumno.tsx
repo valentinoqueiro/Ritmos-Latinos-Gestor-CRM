@@ -1,4 +1,5 @@
 import type { Alumno } from "@/db/schema";
+import { InputFecha } from "@/componentes/campo-fecha";
 import { Campo, Input } from "@/componentes/campos";
 import { FormAccion } from "@/componentes/form-accion";
 import { crearAlumno, editarAlumno } from "./acciones";
@@ -63,10 +64,9 @@ export function FormularioAlumno({
         />
       </Campo>
       <Campo etiqueta="Fecha de nacimiento (opcional)">
-        <Input
+        <InputFecha
           name="fechaNacimiento"
-          type="date"
-          defaultValue={alumno?.fechaNacimiento ?? ""}
+          defaultValue={alumno?.fechaNacimiento}
         />
       </Campo>
     </FormAccion>

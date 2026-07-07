@@ -5,12 +5,18 @@ import {
   movimientosCaja,
   pagoEntregas,
   pagos,
+  sedes,
   suscripciones,
   turnosCaja,
   type MovimientoCaja,
   type TurnoCaja,
 } from "@/db/schema";
-import { autorizarSede, type UsuarioSesion } from "./auth/permissions";
+import {
+  autorizarSede,
+  ErrorAutorizacion,
+  sedesPermitidas,
+  type UsuarioSesion,
+} from "./auth/permissions";
 import { resumenDeTurno, type ResumenTurno } from "./reglas-caja";
 
 // Consultas de la caja por turnos. El resumen se calcula con las reglas puras
@@ -120,6 +126,55 @@ export type CierreDeTurno = {
   totalTransferencia: number;
   egresos: number;
 };
+
+export type TurnoGlobal = CierreDeTurno & { sedeNombre: string };
+
+/**
+ * Turnos recientes de TODAS las sedes (abiertos y cerrados) con sus totales,
+ * para que la administración controle todas las cajas sin cambiar de sede.
+ * Solo para roles con alcance total; una secretaria no pasa de acá.
+ */
+export async function turnosRecientesGlobal(
+  usuario: UsuarioSesion,
+  limite = 15,
+): Promise<TurnoGlobal[]> {
+  if (sedesPermitidas(usuario) !== "todas") {
+    throw new ErrorAutorizacion("Solo la administración ve todas las cajas");
+  }
+  const filas = await db
+    .select({ turno: turnosCaja, sedeNombre: sedes.nombre })
+    .from(turnosCaja)
+    .innerJoin(sedes, eq(turnosCaja.sedeId, sedes.id))
+    .orderBy(desc(turnosCaja.abiertoEn))
+    .limit(limite);
+  if (filas.length === 0) return [];
+  const ids = filas.map((f) => f.turno.id);
+
+  const [entregas, egresos] = await Promise.all([
+    db.select().from(pagoEntregas).where(inArray(pagoEntregas.turnoId, ids)),
+    db
+      .select()
+      .from(movimientosCaja)
+      .where(inArray(movimientosCaja.turnoId, ids)),
+  ]);
+
+  return filas.map(({ turno, sedeNombre }) => {
+    const propias = entregas.filter((e) => e.turnoId === turno.id);
+    return {
+      turno,
+      sedeNombre,
+      totalEfectivo: propias
+        .filter((e) => e.medio === "efectivo")
+        .reduce((s, e) => s + Number(e.monto), 0),
+      totalTransferencia: propias
+        .filter((e) => e.medio === "transferencia")
+        .reduce((s, e) => s + Number(e.monto), 0),
+      egresos: egresos
+        .filter((m) => m.turnoId === turno.id)
+        .reduce((s, m) => s + Number(m.monto), 0),
+    };
+  });
+}
 
 /** Cierres pasados de la sede con sus totales, más recientes primero. */
 export async function historialDeTurnos(

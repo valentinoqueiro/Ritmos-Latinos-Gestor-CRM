@@ -257,6 +257,15 @@ const esquemaPago = z.object({
   montoAcordado: z.coerce
     .number({ message: "Poné el monto de la cuota" })
     .positive("El monto de la cuota debe ser mayor a cero"),
+  // Ajustes opcionales sobre la cuota: la bonificación descuenta, el recargo
+  // suma. El total a cobrar del contrato es base − bonif + recargo.
+  bonificacion: montoDeMedio,
+  recargo: montoDeMedio,
+  ajusteMotivo: z
+    .string()
+    .trim()
+    .max(200, "El motivo del ajuste es muy largo")
+    .transform((v) => (v === "" ? null : v)),
   efectivo: montoDeMedio,
   transferencia: montoDeMedio,
   fechaContrato: z
@@ -275,6 +284,9 @@ export async function registrarPago(
     const datos = esquemaPago.parse({
       suscripcionId: formData.get("suscripcionId"),
       montoAcordado: formData.get("montoAcordado"),
+      bonificacion: formData.get("bonificacion"),
+      recargo: formData.get("recargo"),
+      ajusteMotivo: formData.get("ajusteMotivo") ?? "",
       efectivo: formData.get("efectivo"),
       transferencia: formData.get("transferencia"),
       fechaContrato: formData.get("fechaContrato"),
@@ -282,8 +294,16 @@ export async function registrarPago(
     if (datos.fechaContrato > hoyISO()) {
       return { error: "La fecha de inicio del contrato no puede ser futura" };
     }
+    // El contrato queda por el total AJUSTADO: cobrarlo entero es pago
+    // completo aunque haya bonificación (no queda deuda por el descuento).
+    const montoAjustado =
+      Math.round((datos.montoAcordado - datos.bonificacion + datos.recargo) * 100) /
+      100;
+    if (montoAjustado <= 0) {
+      return { error: "La bonificación no puede dejar la cuota en cero o negativa" };
+    }
     const reparto = validarReparto(
-      datos.montoAcordado,
+      montoAjustado,
       datos.efectivo,
       datos.transferencia,
     );
@@ -313,7 +333,14 @@ export async function registrarPago(
         .values({
           sedeId: sub.sedeId,
           suscripcionId: sub.id,
-          monto: datos.montoAcordado.toFixed(2),
+          monto: montoAjustado.toFixed(2),
+          bonificacion:
+            datos.bonificacion > 0 ? datos.bonificacion.toFixed(2) : null,
+          recargo: datos.recargo > 0 ? datos.recargo.toFixed(2) : null,
+          ajusteMotivo:
+            datos.bonificacion > 0 || datos.recargo > 0
+              ? datos.ajusteMotivo
+              : null,
           fechaPago: datos.fechaContrato,
           vence,
           registradoPorId: usuario.id,

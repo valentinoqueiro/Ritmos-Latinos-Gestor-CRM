@@ -20,6 +20,7 @@ import {
   tasaDeConversion,
   type EstadoLead,
 } from "@/lib/reglas-leads";
+import { InputFecha } from "@/componentes/campo-fecha";
 import { Campo, Input, Select } from "@/componentes/campos";
 import { IconoCerrar, IconoFrio } from "@/componentes/iconos";
 import { FormAccion } from "@/componentes/form-accion";
@@ -357,7 +358,12 @@ function CamposClaseDePrueba({
         </Select>
       </Campo>
       <Campo etiqueta="Fecha">
-        <Input name="fecha" type="date" required min={hoy} />
+        <InputFecha
+          name="fecha"
+          required
+          min={hoy}
+          mensajeMin="La fecha de la clase de prueba no puede ser pasada"
+        />
       </Campo>
     </>
   );

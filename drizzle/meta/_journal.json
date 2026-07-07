@@ -71,6 +71,13 @@
       "when": 1783270997839,
       "tag": "0009_campanas",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1783424659883,
+      "tag": "0010_asistencia-y-ajustes-de-pago",
+      "breakpoints": true
     }
   ]
 }

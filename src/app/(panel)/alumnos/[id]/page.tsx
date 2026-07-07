@@ -7,6 +7,7 @@ import { pagosDeSuscripciones, umbralPorVencer } from "@/lib/cobros";
 import { formatoFecha, hoyISO } from "@/lib/fechas";
 import { diasParaVencer, estadoCuota } from "@/lib/vencimientos";
 import { puedeCorregirContratos } from "@/lib/auth/permissions";
+import { InputFecha } from "@/componentes/campo-fecha";
 import { Campo, Input } from "@/componentes/campos";
 import { EstadoCuotaChip } from "@/componentes/estado-cuota";
 import { FormAccion } from "@/componentes/form-accion";
@@ -235,6 +236,18 @@ export default async function PaginaFichaAlumno({
                               </span>
                             </span>
                           </div>
+                          {p.bonificacion || p.recargo ? (
+                            <p className="mt-0.5 text-xs text-tinta-suave">
+                              {p.bonificacion
+                                ? `Bonificación de ${formatoMonto(p.bonificacion)}`
+                                : ""}
+                              {p.bonificacion && p.recargo ? " · " : ""}
+                              {p.recargo
+                                ? `Recargo de ${formatoMonto(p.recargo)}`
+                                : ""}
+                              {p.ajusteMotivo ? ` · ${p.ajusteMotivo}` : ""}
+                            </p>
+                          ) : null}
                           {p.entregas.length > 0 ? (
                             <ul className="mt-1.5 grid gap-0.5 border-l-2 border-borde pl-3 text-xs text-tinta-suave">
                               {p.entregas.map((e) => (
@@ -264,17 +277,15 @@ export default async function PaginaFichaAlumno({
                                   />
                                   <div className="grid gap-3 sm:grid-cols-2">
                                     <Campo etiqueta="Vence el">
-                                      <Input
+                                      <InputFecha
                                         name="vence"
-                                        type="date"
                                         required
                                         defaultValue={p.vence}
                                       />
                                     </Campo>
                                     <Campo etiqueta="Inicio del contrato">
-                                      <Input
+                                      <InputFecha
                                         name="fechaContrato"
-                                        type="date"
                                         defaultValue={p.fechaPago}
                                       />
                                     </Campo>

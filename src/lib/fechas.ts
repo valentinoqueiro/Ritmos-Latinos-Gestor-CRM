@@ -25,6 +25,13 @@ export function diaSemanaISO(iso: string): number {
   return dia === 0 ? 7 : dia;
 }
 
+/** Suma (o resta, con n negativo) días calendario a una fecha YYYY-MM-DD. */
+export function sumarDias(iso: string, n: number): string {
+  const [a, m, d] = iso.split("-").map(Number);
+  const fecha = new Date(Date.UTC(a, m - 1, d + n));
+  return fecha.toISOString().slice(0, 10);
+}
+
 /** Claves "YYYY-MM" de los últimos n meses, terminando en el mes de `hoy`. */
 export function ultimosMeses(n: number, hoy: string = hoyISO()): string[] {
   const [anio, mes] = hoy.split("-").map(Number);

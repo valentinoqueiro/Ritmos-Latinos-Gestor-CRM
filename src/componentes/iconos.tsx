@@ -55,6 +55,16 @@ export function IconoHorarios(p: Props) {
   );
 }
 
+export function IconoAsistencia(p: Props) {
+  return (
+    <Svg {...p}>
+      <rect x="4" y="4.5" width="16" height="17" rx="2" />
+      <path d="M9 4.5V3h6v1.5" />
+      <path d="m8.5 13 2.4 2.4 4.6-4.8" />
+    </Svg>
+  );
+}
+
 export function IconoDashboard(p: Props) {
   return (
     <Svg {...p}>
@@ -181,6 +191,8 @@ export function IconoNavPorNombre({
       return <IconoInteresados className={className} />;
     case "horarios":
       return <IconoHorarios className={className} />;
+    case "asistencia":
+      return <IconoAsistencia className={className} />;
     case "dashboard":
       return <IconoDashboard className={className} />;
     case "gastos":

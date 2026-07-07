@@ -1,5 +1,6 @@
 import type { Gasto } from "@/db/schema";
 import { hoyISO } from "@/lib/fechas";
+import { InputFecha } from "@/componentes/campo-fecha";
 import { Campo, Input, Select } from "@/componentes/campos";
 
 export function FormularioCampos({
@@ -49,9 +50,8 @@ export function FormularioCampos({
           />
         </Campo>
         <Campo etiqueta="Fecha">
-          <Input
+          <InputFecha
             name="fecha"
-            type="date"
             required
             defaultValue={gasto?.fecha ?? hoyISO()}
           />

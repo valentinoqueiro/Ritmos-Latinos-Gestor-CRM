@@ -7,6 +7,7 @@ import { leads } from "@/db/schema";
 import { requerirSeccion } from "@/lib/auth/guards";
 import { puedeTransicionar } from "@/lib/reglas-leads";
 import { sedesVisibles } from "@/lib/sedes";
+import { InputFecha } from "@/componentes/campo-fecha";
 import { Campo, Input, Select } from "@/componentes/campos";
 import { FormAccion } from "@/componentes/form-accion";
 import { convertirLead } from "../../acciones";
@@ -79,7 +80,7 @@ export default async function PaginaConvertirLead({
           <Input name="email" type="email" defaultValue={lead.email ?? ""} />
         </Campo>
         <Campo etiqueta="Fecha de nacimiento (opcional)">
-          <Input name="fechaNacimiento" type="date" />
+          <InputFecha name="fechaNacimiento" />
         </Campo>
       </FormAccion>
     </div>

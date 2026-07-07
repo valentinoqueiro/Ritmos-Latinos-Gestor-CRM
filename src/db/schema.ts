@@ -238,8 +238,15 @@ export const pagos = pgTable("pagos", {
   suscripcionId: integer("suscripcion_id")
     .notNull()
     .references(() => suscripciones.id),
-  // Monto ACORDADO de la cuota; si las entregas suman menos, hay deuda.
+  // Monto ACORDADO de la cuota, YA con bonificación/recargo aplicados; si las
+  // entregas suman menos, hay deuda. El desglose del ajuste queda al lado.
   monto: numeric("monto", { precision: 12, scale: 2 }).notNull(),
+  // Ajustes sobre el precio base de la cuota (solo registro/desglose): la
+  // bonificación descuenta y el recargo suma; monto = base − bonif + recargo.
+  // Así un pago bonificado queda COMPLETO, no parcial.
+  bonificacion: numeric("bonificacion", { precision: 12, scale: 2 }),
+  recargo: numeric("recargo", { precision: 12, scale: 2 }),
+  ajusteMotivo: text("ajuste_motivo"),
   // Fecha de inicio del contrato: el vencimiento se calcula desde acá.
   // Puede retro-datarse si el alumno empezó antes de registrar el pago.
   fechaPago: date("fecha_pago").notNull(),
@@ -325,6 +332,40 @@ export const pagoEntregas = pgTable("pago_entregas", {
     .notNull()
     .defaultNow(),
 });
+
+// ---------------------------------------------------------------------------
+// Asistencia por clase
+// ---------------------------------------------------------------------------
+
+// Cantidad de alumnos que hubo en una clase puntual (horario + fecha). Es un
+// conteo simple para tener registro de concurrencia, no un presentismo por
+// alumno. Una fila por clase dictada; corregir el número pisa la misma fila.
+export const asistenciasClase = pgTable(
+  "asistencias_clase",
+  {
+    id: serial("id").primaryKey(),
+    sedeId: integer("sede_id")
+      .notNull()
+      .references(() => sedes.id),
+    horarioId: integer("horario_id")
+      .notNull()
+      .references(() => horarios.id),
+    fecha: date("fecha").notNull(),
+    cantidad: integer("cantidad").notNull(),
+    registradoPorId: integer("registrado_por_id").references(() => usuarios.id),
+    creadoEn: timestamp("creado_en", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (tabla) => [
+    uniqueIndex("asistencias_horario_fecha_unico").on(
+      tabla.horarioId,
+      tabla.fecha,
+    ),
+  ],
+);
+
+export type AsistenciaClase = typeof asistenciasClase.$inferSelect;
 
 // Parámetros editables sin tocar código (ej.: umbral de "por vencer").
 export const configuracion = pgTable("configuracion", {
