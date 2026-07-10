@@ -2,7 +2,7 @@
 
 > Registro de cambios del sistema de gestión. Cada sesión de trabajo agrega su entrada al cierre: fecha, fase, qué se hizo, decisiones tomadas y pendientes que quedaron.
 
-## 2026-07-10 — CRM: recordatorios de clase de prueba, reabrir perdidos, calendario y fixes (pendiente de deploy)
+## 2026-07-10 — CRM: recordatorios de clase de prueba, reabrir perdidos, calendario y fixes
 
 **Pedidos del cliente sobre el kanban y la ficha:**
 
@@ -13,7 +13,7 @@
 - **Reabrir perdidos** (decisión del cliente): las tarjetas de «Perdido» ganan «Reabrir ▾» hacia cualquier etapa abierta (`reglas-leads` actualizado con tests; convertido sigue final y perdido→convertido sigue bloqueado). Al reabrir se limpia el motivo de pérdida (queda en el historial como «Reabierto: pasó a …»).
 - 153 tests en verde, typecheck y build OK. E2E completo en build de producción: 13/13 (solape en escritorio y celular, aviso+botón+wa.me con mensaje correcto, marca persistente, reapertura, agendado desde el calendario, sin recordatorio para fechas lejanas).
 
-**Pendiente (freno pactado):** aplicar `0012` a Neon (una columna nullable) y pushear/deployar con OK del cliente.
+**Deploy (2026-07-10, con OK del cliente):** migración `0012` aplicada a Neon (13/13, columna verificada, 39 leads intactos), push a main y deploy de Vercel en Ready.
 
 ## 2026-07-10 — Invitaciones a la clase de prueba vía webhook a n8n
 
