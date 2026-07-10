@@ -16,6 +16,11 @@ import {
 import { requerirSeccion } from "@/lib/auth/guards";
 import { formatoFecha, ZONA_HORARIA } from "@/lib/fechas";
 import {
+  CLAVE_WEBHOOK_INVITACIONES_TOKEN,
+  CLAVE_WEBHOOK_INVITACIONES_URL,
+  webhookConfigurado,
+} from "@/lib/invitaciones";
+import {
   CLAVE_MENSAJE_INTERESADOS,
   MENSAJE_INTERESADOS_DEFAULT,
   linkWhatsApp,
@@ -31,7 +36,8 @@ import { configuracion } from "@/db/schema";
 import { sedesVisibles } from "@/lib/sedes";
 import { Campo, Input, Select } from "@/componentes/campos";
 import { FormAccion } from "@/componentes/form-accion";
-import { agregarNota, guardarInteresesLead } from "../acciones";
+import { agregarNota, guardarEmailLead, guardarInteresesLead } from "../acciones";
+import { BotonInvitacion, type OpcionInvitacion } from "./invitacion";
 
 export const metadata: Metadata = { title: "Ficha del lead" };
 
@@ -115,6 +121,7 @@ export default async function PaginaFichaLead({
             diaSemana: horarios.diaSemana,
             hora: horarios.hora,
             disciplina: disciplinas.nombre,
+            sedeId: horarios.sedeId,
           })
           .from(horarios)
           .innerJoin(disciplinas, eq(horarios.disciplinaId, disciplinas.id))
@@ -122,6 +129,49 @@ export default async function PaginaFichaLead({
           .then((filas) => filas[0] ?? null)
       : null,
   ]);
+
+  // Invitación a la clase de prueba: candidatas de disciplina (la de la clase
+  // agendada primero, después las de interés) con sede y dirección derivadas,
+  // y si el webhook externo ya está configurado.
+  const [filaWebhookUrl, filaWebhookToken] =
+    lead.estado === "prueba_agendada"
+      ? await Promise.all([
+          db.query.configuracion.findFirst({
+            where: eq(configuracion.clave, CLAVE_WEBHOOK_INVITACIONES_URL),
+          }),
+          db.query.configuracion.findFirst({
+            where: eq(configuracion.clave, CLAVE_WEBHOOK_INVITACIONES_TOKEN),
+          }),
+        ])
+      : [null, null];
+  const webhookListo = webhookConfigurado(
+    filaWebhookUrl?.valor,
+    filaWebhookToken?.valor,
+  );
+  const opcionInvitacion = (
+    disciplina: string,
+    sedeId: number,
+  ): OpcionInvitacion => {
+    const sede = sedes.find((s) => s.id === sedeId);
+    return {
+      disciplina,
+      sede: sede?.nombre ?? "",
+      direccion: sede?.direccion ?? "",
+    };
+  };
+  const opcionesInvitacion: OpcionInvitacion[] = [];
+  if (prueba) {
+    opcionesInvitacion.push(opcionInvitacion(prueba.disciplina, prueba.sedeId));
+  }
+  for (const interes of intereses) {
+    if (
+      !opcionesInvitacion.some(
+        (o) => o.disciplina.toLowerCase() === interes.nombre.toLowerCase(),
+      )
+    ) {
+      opcionesInvitacion.push(opcionInvitacion(interes.nombre, interes.sedeId));
+    }
+  }
 
   const plantilla = filaMensaje?.valor ?? MENSAJE_INTERESADOS_DEFAULT;
   const whatsapp = linkWhatsApp(
@@ -181,6 +231,22 @@ export default async function PaginaFichaLead({
           >
             WhatsApp con mensaje
           </a>
+          {lead.estado === "prueba_agendada" ? (
+            <BotonInvitacion
+              leadId={lead.id}
+              nombre={lead.nombre}
+              email={lead.email}
+              opciones={opcionesInvitacion}
+              fecha={lead.pruebaFecha}
+              hora={prueba ? formatoHora(prueba.hora) : null}
+              invitacionEnviada={
+                lead.invitacionEnviadaEn
+                  ? formatoFechaHora(lead.invitacionEnviadaEn)
+                  : null
+              }
+              webhookListo={webhookListo}
+            />
+          ) : null}
           {puedeTransicionar(lead.estado, "convertido") ? (
             <Link
               href={`/crm/${lead.id}/convertir`}
@@ -210,12 +276,30 @@ export default async function PaginaFichaLead({
                 <dt className="text-tinta-suave">Teléfono</dt>
                 <dd className="font-medium">{lead.telefono}</dd>
               </div>
-              {lead.email ? (
-                <div className="flex justify-between gap-3">
-                  <dt className="text-tinta-suave">Email</dt>
-                  <dd className="min-w-0 truncate font-medium">{lead.email}</dd>
-                </div>
-              ) : null}
+              <div>
+                <dt className="text-tinta-suave">Email</dt>
+                <dd className="mt-1">
+                  {/* Editable: hace falta para la invitación a la clase de
+                      prueba y para corregir emails que llegan mal de Meta. */}
+                  <FormAccion
+                    accion={guardarEmailLead}
+                    textoBoton="Guardar"
+                    variante="secundario"
+                    className="flex flex-wrap items-start gap-2 [&>button]:mt-0 [&>button]:w-auto"
+                  >
+                    <input type="hidden" name="leadId" value={lead.id} />
+                    <Input
+                      name="email"
+                      type="email"
+                      inputMode="email"
+                      aria-label="Email del lead"
+                      defaultValue={lead.email ?? ""}
+                      placeholder="Sin email — cargalo acá"
+                      className="min-w-0 flex-1"
+                    />
+                  </FormAccion>
+                </dd>
+              </div>
               <div className="flex justify-between gap-3">
                 <dt className="text-tinta-suave">Cargado</dt>
                 <dd className="font-medium">

@@ -55,6 +55,8 @@ El CRM evoluciona a un pipeline kanban con disciplinas de interés (la sede se D
 | R4 | Retención en el CRM + conversión enriquecida | ✅ Terminada | 2026-07-04 |
 | R5 | Métricas del CRM + verificación e2e + cierre | ✅ Terminada | 2026-07-04 |
 
+**Extensión (2026-07-10): invitación a la clase de prueba (webhook a n8n).** Con el lead en «Prueba agendada», la admin manda desde la ficha una invitación (voucher por email) que arma un n8n externo: el gestor junta los datos, los deja revisar/corregir en una previsualización (sin tocar la ficha) y hace un POST con token Bearer a la URL configurada en Configuración (URL + token secreto; sin configurar, el botón avisa). Solo un 2xx registra el envío en el historial; los fallos no registran y se reintenta. Direcciones de sede editables en Configuración y email del lead editable en la ficha. Solo admin. Contrato en `docs/INVITACIONES_N8N.md`; detalle en CHANGELOG. Sigue vigente la regla de que el sistema no manda mensajes: el email lo manda el n8n.
+
 **Extensión (2026-07-05): campañas de captación.** Para comparar campañas de Meta Lead Ads entre sí: tabla `campanas` con find-or-create desde la ingesta de la API v1 (`campana` opcional en POST/GET, 100 % compatible), filtros combinables por origen y campaña en el kanban, y corte «Por campaña» en Métricas con «Orgánico» visible. La configuración del lado de Meta (formulario + integración que empuja a la API) la hace el cliente después. Detalle en CHANGELOG.
 
 ---

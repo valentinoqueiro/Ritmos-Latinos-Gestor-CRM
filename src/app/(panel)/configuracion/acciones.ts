@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import {
@@ -12,11 +12,17 @@ import {
   planes,
   planesDisciplinas,
   preciosPlan,
+  sedes,
 } from "@/db/schema";
 import { esAlcanceValido, generarClave } from "@/lib/auth/api-keys";
 import { exigirSeccion } from "@/lib/auth/guards";
 import { autorizarSede, ErrorAutorizacion } from "@/lib/auth/permissions";
 import { CLAVE_UMBRAL } from "@/lib/cobros";
+import {
+  CLAVE_WEBHOOK_INVITACIONES_TOKEN,
+  CLAVE_WEBHOOK_INVITACIONES_URL,
+  esquemaUrlWebhook,
+} from "@/lib/invitaciones";
 import {
   CLAVE_MENSAJE_INTERESADOS,
   CLAVE_MENSAJE_RECONTACTO,
@@ -171,6 +177,105 @@ export async function editarCupo(formData: FormData): Promise<void> {
   await db.update(horarios).set({ cupo }).where(eq(horarios.id, id));
   revalidatePath("/configuracion");
   revalidatePath("/horarios");
+}
+
+// --- Sedes (dirección) --------------------------------------------------------
+
+/**
+ * Dirección de la sede, editable por el admin. Se usa en la invitación a la
+ * clase de prueba (y donde haga falta mostrar dónde queda la sede).
+ */
+export async function guardarDireccionSede(
+  _estado: EstadoAccion,
+  formData: FormData,
+): Promise<EstadoAccion> {
+  try {
+    const usuario = await exigirSeccion("configuracion");
+    const datos = z
+      .object({
+        sedeId: z.coerce.number().int().positive(),
+        direccion: z
+          .string()
+          .trim()
+          .min(5, "La dirección es muy corta")
+          .max(160, "La dirección es muy larga"),
+      })
+      .parse({
+        sedeId: formData.get("sedeId"),
+        direccion: formData.get("direccion"),
+      });
+    const sede = await db.query.sedes.findFirst({
+      where: eq(sedes.id, datos.sedeId),
+    });
+    if (!sede) return { error: "La sede no existe" };
+    autorizarSede(usuario, sede.id);
+    await db
+      .update(sedes)
+      .set({ direccion: datos.direccion })
+      .where(eq(sedes.id, sede.id));
+    revalidatePath("/configuracion");
+    return { ok: true };
+  } catch (error) {
+    return mensajeDeError(error);
+  }
+}
+
+// --- Webhook de invitaciones (n8n) ---------------------------------------------
+
+/**
+ * URL y token del webhook externo que manda las invitaciones a la clase de
+ * prueba. El token es un SECRETO: se guarda y nunca vuelve al navegador ni a
+ * los logs — la UI solo muestra si está configurado. Dejar el token en blanco
+ * conserva el guardado; la URL vacía desconfigura todo (URL y token).
+ */
+export async function guardarWebhookInvitaciones(
+  _estado: EstadoAccion,
+  formData: FormData,
+): Promise<EstadoAccion> {
+  try {
+    await exigirSeccion("configuracion");
+    const urlCruda = String(formData.get("url") ?? "").trim();
+    const token = String(formData.get("token") ?? "").trim();
+
+    if (urlCruda === "") {
+      // Desconfigurar: sin URL no hay envío posible; el token guardado ya no
+      // sirve para nada y no se deja dando vueltas.
+      await db
+        .delete(configuracion)
+        .where(
+          inArray(configuracion.clave, [
+            CLAVE_WEBHOOK_INVITACIONES_URL,
+            CLAVE_WEBHOOK_INVITACIONES_TOKEN,
+          ]),
+        );
+      revalidatePath("/configuracion");
+      return { ok: true };
+    }
+
+    const url = esquemaUrlWebhook.parse(urlCruda);
+    await db.transaction(async (tx) => {
+      await tx
+        .insert(configuracion)
+        .values({ clave: CLAVE_WEBHOOK_INVITACIONES_URL, valor: url })
+        .onConflictDoUpdate({
+          target: configuracion.clave,
+          set: { valor: url },
+        });
+      if (token !== "") {
+        await tx
+          .insert(configuracion)
+          .values({ clave: CLAVE_WEBHOOK_INVITACIONES_TOKEN, valor: token })
+          .onConflictDoUpdate({
+            target: configuracion.clave,
+            set: { valor: token },
+          });
+      }
+    });
+    revalidatePath("/configuracion");
+    return { ok: true };
+  } catch (error) {
+    return mensajeDeError(error);
+  }
 }
 
 // --- Mensaje de recontacto (retencion, CRM) --------------------------------------

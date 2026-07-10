@@ -2,6 +2,21 @@
 
 > Registro de cambios del sistema de gestión. Cada sesión de trabajo agrega su entrada al cierre: fecha, fase, qué se hizo, decisiones tomadas y pendientes que quedaron.
 
+## 2026-07-10 — Invitaciones a la clase de prueba vía webhook a n8n (pendiente de deploy)
+
+**Contexto:** cuando un lead pasa a «Prueba agendada», el cliente quiere mandarle por email un voucher para mostrar en recepción. El voucher NO lo genera este sistema: lo arma un n8n externo; el gestor junta los datos, deja revisarlos y dispara un webhook. Contrato completo en `docs/INVITACIONES_N8N.md`.
+
+**Hecho:**
+- **Modelo** (migración `0011_invitacion-prueba`, aditiva, aplicada solo en local): `leads.invitacion_enviada_en` (última invitación enviada; el detalle queda en `lead_actividades`). URL y token del webhook en la tabla `configuracion` (`webhook_invitaciones_url`/`_token`), sin migración.
+- **Configuración (solo admin):** direcciones de sede ahora **editables** (ya existían en el modelo y en producción desde la Fase 1; se usan en la invitación). Sección nueva «Invitaciones a clase de prueba»: URL + token con chip Configurado/Sin configurar. **El token es un secreto**: se guarda, no se loguea y jamás vuelve al navegador (verificado en e2e: el HTML no lo contiene); dejarlo en blanco al guardar conserva el actual; borrar la URL desconfigura todo.
+- **Ficha del lead:** botón «Enviar invitación» solo en `prueba_agendada`. Abre una previsualización con todo editable **sin tocar la ficha** (nombre, email, disciplina —la de la clase agendada primero, selector si hay varias de interés—, sede y dirección que acompañan a la disciplina, fecha y hora de la prueba). Además el **email del lead ahora se edita en la ficha** (hacía falta para invitar y para corregir emails que llegan mal de Meta).
+- **Envío:** POST con `Authorization: Bearer <token>`, timeout de 10 s y el body exacto acordado (`nombre, email, disciplina, sede, direccion, fecha, hora`). Solo un 2xx registra (transacción: historial + marca); error HTTP, timeout o conexión caída muestran un mensaje claro y NO registran — se reintenta con el mismo botón. Sin email: el modal pide cargarlo (no manda). Sin configurar: aviso con link a Configuración. Ya enviada: aviso con fecha, reenvío permitido.
+- **Permisos** (confirmado por el cliente): solo admin — coherente con el CRM. Secretaria y owner bloqueados también por URL (verificado).
+- **Fix de bug pre-existente:** las server actions de la **ficha del lead** (`/crm/[id]`) colgaban la respuesta en build de producción («Guardando…» eterno, aunque guardaban) — el mismo bug del `loading.tsx` del grupo `(panel)` corregido en R3 (`ca50a79`), pero en `crm/loading.tsx`, que aquella vez quedó porque solo se probó el kanban. Se eliminó `crm/loading.tsx` (mismo workaround; el CRM pierde el esqueleto de carga al navegar). Verificado antes/después: agregar nota y el modal de invitación completan al instante; kanban, métricas y recontactar intactos.
+- **Tests:** 19 nuevos (payload exacto con claves en orden, validaciones con mensajes, webhook configurado, URL válida) — 146 en verde, typecheck y build OK. **E2E completo** en build de producción contra un webhook fake que registra cada request: los 14 pasos en verde, con el body verificado byte a byte y el header Bearer correcto.
+
+**Pendiente (freno pactado):** aplicar `0011` a Neon y pushear/deployar con OK del cliente. La migración es una sola columna nullable: sin riesgo. Después del deploy, cargar URL y token reales cuando el n8n esté listo.
+
 ## 2026-07-05 — CRM: campañas de captación + filtros por origen y campaña (pendiente de deploy)
 
 **Contexto:** el cliente va a correr varias campañas de Meta Lead Ads en paralelo (pole, salsa, promos) y los leads entrarán por la API v1 con su campaña identificada; necesita compararlas para decidir dónde invertir.

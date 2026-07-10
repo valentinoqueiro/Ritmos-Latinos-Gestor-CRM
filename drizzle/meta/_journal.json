@@ -78,6 +78,13 @@
       "when": 1783424659883,
       "tag": "0010_asistencia-y-ajustes-de-pago",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1783691189107,
+      "tag": "0011_invitacion-prueba",
+      "breakpoints": true
     }
   ]
 }

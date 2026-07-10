@@ -7,6 +7,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import {
   alumnos,
+  configuracion,
   horarios,
   leadActividades,
   leadDisciplinas,
@@ -16,6 +17,13 @@ import {
 import { exigirSeccion } from "@/lib/auth/guards";
 import { ErrorAutorizacion } from "@/lib/auth/permissions";
 import { formatoFecha, hoyISO } from "@/lib/fechas";
+import {
+  CLAVE_WEBHOOK_INVITACIONES_TOKEN,
+  CLAVE_WEBHOOK_INVITACIONES_URL,
+  esquemaInvitacion,
+  payloadInvitacion,
+  webhookConfigurado,
+} from "@/lib/invitaciones";
 import {
   ETIQUETA_ESTADO_LEAD,
   puedeTransicionar,
@@ -261,6 +269,145 @@ export async function guardarInteresesLead(
           })),
         );
       }
+    });
+    revalidatePath(`/crm/${lead.id}`);
+    revalidatePath("/crm");
+    return { ok: true };
+  } catch (error) {
+    return mensajeDeError(error);
+  }
+}
+
+/**
+ * Email del lead, editable desde la ficha: hace falta para la invitación a la
+ * clase de prueba, y sirve para corregir emails que llegan mal de Meta.
+ * Vacío = borrarlo.
+ */
+export async function guardarEmailLead(
+  _estado: EstadoAccion,
+  formData: FormData,
+): Promise<EstadoAccion> {
+  try {
+    await exigirSeccion("crm");
+    const datos = z
+      .object({
+        leadId: z.coerce.number().int().positive(),
+        email: z
+          .string()
+          .trim()
+          .transform((v) => (v === "" ? null : v))
+          .pipe(z.string().email("El email no parece válido").nullable()),
+      })
+      .parse({
+        leadId: formData.get("leadId"),
+        email: formData.get("email") ?? "",
+      });
+    const lead = await cargarLead(datos.leadId);
+    if (!lead) return { error: "El lead no existe" };
+    await db
+      .update(leads)
+      .set({ email: datos.email, actualizadoEn: new Date() })
+      .where(eq(leads.id, lead.id));
+    revalidatePath(`/crm/${lead.id}`);
+    revalidatePath("/crm");
+    return { ok: true };
+  } catch (error) {
+    return mensajeDeError(error);
+  }
+}
+
+// --- Invitación a la clase de prueba (webhook a n8n) -----------------------------
+
+/**
+ * POST al webhook externo (n8n) que arma y manda el voucher de la clase de
+ * prueba. Los datos salen de la previsualización (editables ahí, NO tocan la
+ * ficha del lead). Solo se registra el envío si el webhook respondió bien:
+ * un fallo deja todo como estaba para poder reintentar.
+ *
+ * El token de autenticación nunca se loguea ni vuelve al navegador.
+ */
+export async function enviarInvitacion(
+  _estado: EstadoAccion,
+  formData: FormData,
+): Promise<EstadoAccion> {
+  try {
+    const usuario = await exigirSeccion("crm");
+    const leadId = z.coerce
+      .number()
+      .int()
+      .positive()
+      .parse(formData.get("leadId"));
+    const datos = esquemaInvitacion.parse({
+      nombre: formData.get("nombre"),
+      email: formData.get("email") ?? "",
+      disciplina: formData.get("disciplina"),
+      sede: formData.get("sede"),
+      direccion: formData.get("direccion"),
+      fecha: formData.get("fecha"),
+      hora: formData.get("hora"),
+    });
+
+    const lead = await cargarLead(leadId);
+    if (!lead) return { error: "El lead no existe" };
+    if (lead.estado !== "prueba_agendada") {
+      return {
+        error:
+          "La invitación se manda con la clase de prueba agendada; este lead ya no está en esa etapa.",
+      };
+    }
+
+    const [filaUrl, filaToken] = await Promise.all([
+      db.query.configuracion.findFirst({
+        where: eq(configuracion.clave, CLAVE_WEBHOOK_INVITACIONES_URL),
+      }),
+      db.query.configuracion.findFirst({
+        where: eq(configuracion.clave, CLAVE_WEBHOOK_INVITACIONES_TOKEN),
+      }),
+    ]);
+    if (!webhookConfigurado(filaUrl?.valor, filaToken?.valor)) {
+      return {
+        error:
+          "Falta configurar el envío de invitaciones (URL y token del webhook) en Configuración.",
+      };
+    }
+
+    // El fallo del webhook NO registra el envío: el error queda a la vista y
+    // el botón sigue ahí para reintentar.
+    let respuesta: Response;
+    try {
+      respuesta = await fetch(filaUrl!.valor.trim(), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${filaToken!.valor.trim()}`,
+        },
+        body: JSON.stringify(payloadInvitacion(datos)),
+        signal: AbortSignal.timeout(10_000),
+        cache: "no-store",
+      });
+    } catch {
+      return {
+        error:
+          "No se pudo contactar al sistema de invitaciones (no respondió a tiempo o la URL no está disponible). No se registró el envío: probá de nuevo en un rato.",
+      };
+    }
+    if (!respuesta.ok) {
+      return {
+        error: `El sistema de invitaciones devolvió un error (código ${respuesta.status}). No se registró el envío: probá de nuevo.`,
+      };
+    }
+
+    await db.transaction(async (tx) => {
+      await tx
+        .update(leads)
+        .set({ invitacionEnviadaEn: new Date(), actualizadoEn: new Date() })
+        .where(eq(leads.id, lead.id));
+      await tx.insert(leadActividades).values({
+        leadId: lead.id,
+        tipo: "sistema",
+        detalle: `Invitación a la clase de prueba enviada a ${datos.email}`,
+        registradoPorId: usuario.id,
+      });
     });
     revalidatePath(`/crm/${lead.id}`);
     revalidatePath("/crm");

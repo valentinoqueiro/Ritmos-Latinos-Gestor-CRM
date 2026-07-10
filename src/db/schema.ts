@@ -489,6 +489,12 @@ export const leads = pgTable("leads", {
   pruebaFecha: date("prueba_fecha"),
   pruebaHorarioId: integer("prueba_horario_id").references(() => horarios.id),
   motivoPerdida: text("motivo_perdida"),
+  // Último envío de la invitación a la clase de prueba (webhook a n8n);
+  // null = nunca se envió. El detalle (quién, a qué email) queda en
+  // lead_actividades; esta marca alimenta el aviso de "ya se envió antes".
+  invitacionEnviadaEn: timestamp("invitacion_enviada_en", {
+    withTimezone: true,
+  }),
   // Al convertir queda el vínculo con el alumno creado.
   alumnoId: integer("alumno_id").references(() => alumnos.id),
   creadoEn: timestamp("creado_en", { withTimezone: true })
