@@ -174,6 +174,14 @@ export function IconoCerrar(p: Props) {
   );
 }
 
+export function IconoCheck(p: Props) {
+  return (
+    <Svg {...p}>
+      <path d="M4.5 12.5 10 18 19.5 6.5" />
+    </Svg>
+  );
+}
+
 export function IconoNavPorNombre({
   nombre,
   className,

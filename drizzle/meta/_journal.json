@@ -85,6 +85,13 @@
       "when": 1783691189107,
       "tag": "0011_invitacion-prueba",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1783693229415,
+      "tag": "0012_prueba-recordada",
+      "breakpoints": true
     }
   ]
 }

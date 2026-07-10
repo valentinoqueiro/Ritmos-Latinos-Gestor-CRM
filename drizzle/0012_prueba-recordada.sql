@@ -1,0 +1,1 @@
+ALTER TABLE "leads" ADD COLUMN "prueba_recordada_en" timestamp with time zone;

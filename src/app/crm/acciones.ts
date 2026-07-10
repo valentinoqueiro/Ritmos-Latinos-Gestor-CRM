@@ -60,6 +60,9 @@ async function avanzarEstado(
       error: `No se puede pasar de "${lead.estado}" a "${destino}"`,
     };
   }
+  // Reabrir un perdido limpia el motivo de pérdida (queda en el historial) y
+  // lo dice explícito en la actividad.
+  const reabierto = lead.estado === "perdido";
   // etapaDesde alimenta el "hace cuánto está acá" y la alerta de lead frío;
   // cada transición deja además su rastro en el historial de actividad.
   await db.transaction(async (tx) => {
@@ -69,6 +72,7 @@ async function avanzarEstado(
         estado: destino,
         etapaDesde: new Date(),
         actualizadoEn: new Date(),
+        ...(reabierto ? { motivoPerdida: null } : {}),
         ...extras,
       })
       .where(eq(leads.id, leadId));
@@ -76,7 +80,8 @@ async function avanzarEstado(
       leadId,
       tipo: "sistema",
       detalle:
-        opciones.detalle ?? `Pasó a ${ETIQUETA_ESTADO_LEAD[destino]}`,
+        opciones.detalle ??
+        `${reabierto ? "Reabierto: pasó" : "Pasó"} a ${ETIQUETA_ESTADO_LEAD[destino]}`,
       registradoPorId: opciones.usuarioId ?? null,
     });
   });
@@ -316,6 +321,48 @@ export async function guardarEmailLead(
   }
 }
 
+/**
+ * Marca que se le mandó el recordatorio de la clase de prueba por WhatsApp
+ * (el botón «Recordar» de la tarjeta abre el chat y dispara esto). Queda la
+ * marca para el "ya se le recordó" y el rastro en el historial.
+ */
+export async function marcarPruebaRecordada(
+  _estado: EstadoAccion,
+  formData: FormData,
+): Promise<EstadoAccion> {
+  try {
+    const usuario = await exigirSeccion("crm");
+    const leadId = z.coerce
+      .number()
+      .int()
+      .positive()
+      .parse(formData.get("leadId"));
+    const lead = await cargarLead(leadId);
+    if (!lead) return { error: "El lead no existe" };
+    if (lead.estado !== "prueba_agendada" || !lead.pruebaFecha) {
+      return { error: "Este lead no tiene una clase de prueba agendada" };
+    }
+    const fechaPrueba = lead.pruebaFecha;
+    await db.transaction(async (tx) => {
+      await tx
+        .update(leads)
+        .set({ pruebaRecordadaEn: new Date(), actualizadoEn: new Date() })
+        .where(eq(leads.id, lead.id));
+      await tx.insert(leadActividades).values({
+        leadId: lead.id,
+        tipo: "sistema",
+        detalle: `Recordatorio de la clase de prueba (${formatoFecha(fechaPrueba)}) enviado por WhatsApp`,
+        registradoPorId: usuario.id,
+      });
+    });
+    revalidatePath("/crm");
+    revalidatePath(`/crm/${lead.id}`);
+    return { ok: true };
+  } catch (error) {
+    return mensajeDeError(error);
+  }
+}
+
 // --- Invitación a la clase de prueba (webhook a n8n) -----------------------------
 
 /**
@@ -451,7 +498,9 @@ export async function agendarPrueba(
     return await avanzarEstado(
       leadId,
       "prueba_agendada",
-      { pruebaFecha: fecha, pruebaHorarioId: horarioId },
+      // Agendar (o re-agendar) resetea el recordatorio: la prueba nueva
+      // todavía no se le recordó.
+      { pruebaFecha: fecha, pruebaHorarioId: horarioId, pruebaRecordadaEn: null },
       {
         usuarioId: usuario.id,
         detalle: `Clase de prueba agendada para el ${formatoFecha(fecha)}`,

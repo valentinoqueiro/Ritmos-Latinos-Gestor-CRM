@@ -12,8 +12,10 @@ import {
 import {
   CLAVE_MENSAJE_INTERESADOS,
   CLAVE_MENSAJE_RECONTACTO,
+  CLAVE_MENSAJE_RECORDATORIO_PRUEBA,
   MENSAJE_INTERESADOS_DEFAULT,
   MENSAJE_RECONTACTO_DEFAULT,
+  MENSAJE_RECORDATORIO_PRUEBA_DEFAULT,
 } from "@/lib/mensajes";
 import {
   CLAVE_UMBRAL_LEAD_FRIO,
@@ -27,6 +29,7 @@ import {
   guardarDireccionSede,
   guardarMensajeInteresados,
   guardarMensajeRecontacto,
+  guardarMensajeRecordatorioPrueba,
   guardarUmbral,
   guardarUmbralLeadFrio,
   guardarWebhookInvitaciones,
@@ -54,6 +57,7 @@ export default async function PaginaConfiguracion() {
     filaRecontacto,
     filaWebhookUrl,
     filaWebhookToken,
+    filaRecordatorio,
   ] =
     await Promise.all([
       sedesVisibles(usuario),
@@ -77,6 +81,9 @@ export default async function PaginaConfiguracion() {
       db.query.configuracion.findFirst({
         where: eq(configuracion.clave, CLAVE_WEBHOOK_INVITACIONES_TOKEN),
       }),
+      db.query.configuracion.findFirst({
+        where: eq(configuracion.clave, CLAVE_MENSAJE_RECORDATORIO_PRUEBA),
+      }),
     ]);
   const mensajeInteresados = filaMensaje?.valor ?? MENSAJE_INTERESADOS_DEFAULT;
   const umbralFrio = Number(filaUmbralFrio?.valor) || UMBRAL_LEAD_FRIO_DEFAULT;
@@ -85,6 +92,8 @@ export default async function PaginaConfiguracion() {
   // El token NUNCA baja al navegador: solo se muestra si existe o no.
   const hayToken = Boolean(filaWebhookToken?.valor);
   const webhookListo = Boolean(webhookUrl) && hayToken;
+  const mensajeRecordatorio =
+    filaRecordatorio?.valor ?? MENSAJE_RECORDATORIO_PRUEBA_DEFAULT;
   const nombreSede = (sedeId: number | null) =>
     sedes.find((s) => s.id === sedeId)?.nombre ?? "Todas";
 
@@ -232,6 +241,34 @@ export default async function PaginaConfiguracion() {
               required
               rows={4}
               defaultValue={mensajeInteresados}
+              className={`${claseInput} h-auto py-2`}
+            />
+          </Campo>
+        </FormAccion>
+      </section>
+
+      <section className="mt-8 max-w-md tarjeta p-4">
+        <h2 className="font-semibold">Recordatorio de clase de prueba (CRM)</h2>
+        <p className="mt-1 text-sm text-tinta-suave">
+          Lo que se manda por WhatsApp desde la tarjeta del pipeline el día
+          antes o el mismo día de la clase de prueba. Usá{" "}
+          <code className="rounded bg-fondo px-1">{"{nombre}"}</code>,{" "}
+          <code className="rounded bg-fondo px-1">{"{dia}"}</code> (hoy /
+          mañana), <code className="rounded bg-fondo px-1">{"{disciplina}"}</code>{" "}
+          y <code className="rounded bg-fondo px-1">{"{hora}"}</code>.
+        </p>
+        <FormAccion
+          accion={guardarMensajeRecordatorioPrueba}
+          textoBoton="Guardar mensaje"
+          variante="secundario"
+          className="mt-3"
+        >
+          <Campo etiqueta="Mensaje">
+            <textarea
+              name="mensaje"
+              required
+              rows={4}
+              defaultValue={mensajeRecordatorio}
               className={`${claseInput} h-auto py-2`}
             />
           </Campo>

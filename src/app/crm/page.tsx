@@ -14,7 +14,9 @@ import { requerirSeccion } from "@/lib/auth/guards";
 import { hoyISO } from "@/lib/fechas";
 import {
   CLAVE_MENSAJE_INTERESADOS,
+  CLAVE_MENSAJE_RECORDATORIO_PRUEBA,
   MENSAJE_INTERESADOS_DEFAULT,
+  MENSAJE_RECORDATORIO_PRUEBA_DEFAULT,
   linkWhatsApp,
   renderizarPlantilla,
 } from "@/lib/mensajes";
@@ -24,6 +26,7 @@ import {
   UMBRAL_LEAD_FRIO_DEFAULT,
   diasEnEtapa,
   esLeadFrio,
+  recordatorioDePrueba,
 } from "@/lib/reglas-crm";
 import { sedesVisibles } from "@/lib/sedes";
 import { TableroKanban, type LeadDeTablero } from "./tablero-kanban";
@@ -72,6 +75,7 @@ export default async function PaginaCrm() {
         where: inArray(configuracion.clave, [
           CLAVE_UMBRAL_LEAD_FRIO,
           CLAVE_MENSAJE_INTERESADOS,
+          CLAVE_MENSAJE_RECORDATORIO_PRUEBA,
         ]),
       }),
       db.query.campanas.findMany({ orderBy: asc(campanas.nombre) }),
@@ -102,6 +106,9 @@ export default async function PaginaCrm() {
     Number(valorConfig(CLAVE_UMBRAL_LEAD_FRIO)) || UMBRAL_LEAD_FRIO_DEFAULT;
   const plantilla =
     valorConfig(CLAVE_MENSAJE_INTERESADOS) ?? MENSAJE_INTERESADOS_DEFAULT;
+  const plantillaRecordatorio =
+    valorConfig(CLAVE_MENSAJE_RECORDATORIO_PRUEBA) ??
+    MENSAJE_RECORDATORIO_PRUEBA_DEFAULT;
 
   const nombreSede = (id: number) =>
     sedes.find((s) => s.id === id)?.nombre.replace("Sede ", "") ?? "";
@@ -109,8 +116,17 @@ export default async function PaginaCrm() {
     origenes.find((o) => o.id === id)?.nombre ?? null;
 
   const ahora = new Date();
+  const hoy = hoyISO();
   const tarjetas: LeadDeTablero[] = todos.map((lead) => {
     const intereses = interesesDeLeads.filter((i) => i.leadId === lead.id);
+    // Recordatorio de la clase de prueba: solo el día antes y el mismo día.
+    const cuando =
+      lead.estado === "prueba_agendada"
+        ? recordatorioDePrueba(lead.pruebaFecha, hoy)
+        : null;
+    const horarioPrueba = listaHorarios.find(
+      (h) => h.id === lead.pruebaHorarioId,
+    );
     return {
       id: lead.id,
       nombre: lead.nombre,
@@ -129,6 +145,23 @@ export default async function PaginaCrm() {
       pruebaFecha: lead.pruebaFecha,
       motivoPerdida: lead.motivoPerdida,
       alumnoId: lead.alumnoId,
+      // Para reconocer al lead de un vistazo (varios se llaman igual).
+      telefonoUltimos4: lead.telefono.replace(/\D/g, "").slice(-4),
+      recordatorio: cuando
+        ? {
+            cuando,
+            recordada: lead.pruebaRecordadaEn !== null,
+            link: linkWhatsApp(
+              lead.telefono,
+              renderizarPlantilla(plantillaRecordatorio, {
+                nombre: lead.nombre,
+                dia: cuando === "hoy" ? "hoy" : "mañana",
+                disciplina: horarioPrueba?.disciplina ?? "baile",
+                hora: horarioPrueba ? formatoHora(horarioPrueba.hora) : "",
+              }),
+            ),
+          }
+        : null,
       whatsapp: linkWhatsApp(
         lead.telefono,
         renderizarPlantilla(plantilla, { nombre: lead.nombre }),
@@ -150,7 +183,7 @@ export default async function PaginaCrm() {
     <TableroKanban
       tarjetas={tarjetas}
       umbralFrio={umbralFrio}
-      hoy={hoyISO()}
+      hoy={hoy}
       opcionesHorario={opcionesHorario}
       opcionesDisciplina={catalogoDisciplinas.map((d) => ({
         id: d.id,

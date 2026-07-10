@@ -488,6 +488,10 @@ export const leads = pgTable("leads", {
   // Clase de prueba: fecha + horario existente, sin sobre-ingeniería.
   pruebaFecha: date("prueba_fecha"),
   pruebaHorarioId: integer("prueba_horario_id").references(() => horarios.id),
+  // Cuándo se le mandó el recordatorio de la clase de prueba por WhatsApp
+  // (el aviso "hoy/mañana tiene clase" de la tarjeta del kanban); null = sin
+  // recordar. Se resetea al (re)agendar una prueba.
+  pruebaRecordadaEn: timestamp("prueba_recordada_en", { withTimezone: true }),
   motivoPerdida: text("motivo_perdida"),
   // Último envío de la invitación a la clase de prueba (webhook a n8n);
   // null = nunca se envió. El detalle (quién, a qué email) queda en

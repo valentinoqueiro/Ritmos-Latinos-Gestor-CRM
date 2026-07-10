@@ -267,7 +267,10 @@ export default async function PaginaFichaLead({
       </div>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,22rem)_1fr]">
-        <div className="grid content-start gap-4">
+        {/* min-w-0 en ambas columnas: sin esto, un texto sin espacios (una
+            nota tipo busco_una_actividad_… de Meta) agranda la tarjeta más
+            allá de su columna y las dos tarjetas se superponen. */}
+        <div className="grid min-w-0 content-start gap-4">
           {/* Datos de contacto */}
           <section className="tarjeta p-4">
             <h2 className="text-sm font-semibold text-tinta-suave">Datos</h2>
@@ -302,7 +305,7 @@ export default async function PaginaFichaLead({
               </div>
               <div className="flex justify-between gap-3">
                 <dt className="text-tinta-suave">Cargado</dt>
-                <dd className="font-medium">
+                <dd className="min-w-0 [overflow-wrap:anywhere] text-right font-medium">
                   {formatoFechaHora(lead.creadoEn)}
                   {lead.origen === "api" ? ` · vía ${lead.fuente ?? "API"}` : ""}
                   {lead.fuente === "mostrador" ? " · mostrador" : ""}
@@ -317,7 +320,7 @@ export default async function PaginaFichaLead({
               {lead.nota ? (
                 <div>
                   <dt className="text-tinta-suave">Nota de captura</dt>
-                  <dd className="mt-0.5 rounded-lg bg-fondo px-2.5 py-1.5">
+                  <dd className="mt-0.5 [overflow-wrap:anywhere] rounded-lg bg-fondo px-2.5 py-1.5">
                     {lead.nota}
                   </dd>
                 </div>
@@ -325,7 +328,7 @@ export default async function PaginaFichaLead({
               {lead.motivoPerdida ? (
                 <div>
                   <dt className="text-tinta-suave">Motivo de pérdida</dt>
-                  <dd className="mt-0.5 rounded-lg bg-marca-suave px-2.5 py-1.5 text-marca-oscuro">
+                  <dd className="mt-0.5 [overflow-wrap:anywhere] rounded-lg bg-marca-suave px-2.5 py-1.5 text-marca-oscuro">
                     {lead.motivoPerdida}
                   </dd>
                 </div>
@@ -388,7 +391,7 @@ export default async function PaginaFichaLead({
         </div>
 
         {/* Historial de actividad */}
-        <section className="tarjeta p-4">
+        <section className="min-w-0 tarjeta p-4">
           <h2 className="text-sm font-semibold text-tinta-suave">
             Actividad ({actividades.length})
           </h2>
@@ -436,7 +439,7 @@ export default async function PaginaFichaLead({
                   {a.canal ? ` · ${ETIQUETA_CANAL[a.canal]}` : ""}
                   {a.registradoPor ? ` · ${a.registradoPor}` : ""}
                 </p>
-                <p className={`mt-0.5 text-sm ${a.tipo === "nota" ? "font-medium" : "text-tinta-suave"}`}>
+                <p className={`mt-0.5 [overflow-wrap:anywhere] text-sm ${a.tipo === "nota" ? "font-medium" : "text-tinta-suave"}`}>
                   {a.detalle}
                 </p>
               </li>

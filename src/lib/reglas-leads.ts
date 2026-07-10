@@ -20,20 +20,26 @@ export const ETIQUETA_ESTADO_LEAD: Record<EstadoLead, string> = {
 // ir y volver libremente (decisión del cliente 2026-07-04 para el kanban:
 // corregir un arrastre errado o retroceder una prueba que se cayó). "Perdido"
 // es posible desde cualquier estado abierto; convertir requiere haberlo
-// contactado al menos. Los estados finales (convertido / perdido) no se
-// mueven más.
+// contactado al menos. Un lead perdido se puede REABRIR a cualquier etapa
+// abierta (decisión del cliente 2026-07-10: a veces vuelven); al reabrirse
+// pierde el motivo de pérdida (queda en el historial). "Convertido" sí es
+// final: ya es alumno.
 const TRANSICIONES: Record<EstadoLead, ReadonlySet<EstadoLead>> = {
   nuevo: new Set(["contactado", "prueba_agendada", "perdido"]),
   contactado: new Set(["nuevo", "prueba_agendada", "convertido", "perdido"]),
   prueba_agendada: new Set(["nuevo", "contactado", "convertido", "perdido"]),
   convertido: new Set(),
-  perdido: new Set(),
+  perdido: new Set(["nuevo", "contactado", "prueba_agendada"]),
 };
 
 export function puedeTransicionar(de: EstadoLead, a: EstadoLead): boolean {
   return TRANSICIONES[de].has(a);
 }
 
+/**
+ * Desenlaces del pipeline (columnas "cerradas" del kanban). Ojo: perdido es
+ * un desenlace pero desde 2026-07-10 se puede REABRIR (ver TRANSICIONES).
+ */
 export function esEstadoFinal(estado: EstadoLead): boolean {
   return estado === "convertido" || estado === "perdido";
 }

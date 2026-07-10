@@ -21,11 +21,16 @@ import {
   tasaDeConversion,
   type EstadoLead,
 } from "@/lib/reglas-leads";
-import { InputFecha } from "@/componentes/campo-fecha";
 import { Campo, Input, Select } from "@/componentes/campos";
-import { IconoCerrar, IconoFrio } from "@/componentes/iconos";
+import { IconoCerrar, IconoCheck, IconoFrio } from "@/componentes/iconos";
 import { FormAccion } from "@/componentes/form-accion";
-import { agendarPrueba, crearLead, marcarPerdido, moverLead } from "./acciones";
+import {
+  agendarPrueba,
+  crearLead,
+  marcarPerdido,
+  marcarPruebaRecordada,
+  moverLead,
+} from "./acciones";
 
 export type LeadDeTablero = {
   id: number;
@@ -40,6 +45,15 @@ export type LeadDeTablero = {
   pruebaFecha: string | null;
   motivoPerdida: string | null;
   alumnoId: number | null;
+  // Últimos 4 dígitos del teléfono: para reconocer al lead de un vistazo.
+  telefonoUltimos4: string;
+  // Aviso de clase de prueba inminente (solo el día antes y el mismo día):
+  // cuándo es, si ya se le recordó, y el wa.me con el mensaje prellenado.
+  recordatorio: {
+    cuando: "hoy" | "manana";
+    recordada: boolean;
+    link: string;
+  } | null;
   whatsapp: string;
 };
 
@@ -59,7 +73,14 @@ function formatoFechaCorta(iso: string): string {
 
 // --- Tarjeta -----------------------------------------------------------------
 
-function ContenidoTarjeta({ lead }: { lead: LeadDeTablero }) {
+function ContenidoTarjeta({
+  lead,
+  onRecordar,
+}: {
+  lead: LeadDeTablero;
+  // Ausente en el overlay de arrastre (ahí nada es clickeable).
+  onRecordar?: (lead: LeadDeTablero) => void;
+}) {
   return (
     <>
       <div className="flex items-start justify-between gap-2">
@@ -94,9 +115,36 @@ function ContenidoTarjeta({ lead }: { lead: LeadDeTablero }) {
         )}
       </div>
       {lead.estado === "prueba_agendada" && lead.pruebaFecha ? (
-        <p className="mt-1.5 rounded-md bg-alerta/10 px-2 py-1 text-xs font-medium text-alerta">
-          Prueba el {formatoFechaCorta(lead.pruebaFecha)}
-        </p>
+        lead.recordatorio ? (
+          /* La clase es hoy o mañana: recordatorio bien visible + acción. */
+          <div className="mt-1.5 rounded-md bg-marca/10 px-2 py-1.5">
+            <p className="text-xs font-bold text-marca-oscuro">
+              {lead.recordatorio.cuando === "hoy"
+                ? "¡HOY tiene la clase de prueba!"
+                : "Mañana tiene la clase de prueba"}
+            </p>
+            {lead.recordatorio.recordada ? (
+              <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-ok">
+                <IconoCheck className="h-3.5 w-3.5" aria-hidden />
+                Ya se le recordó
+              </p>
+            ) : onRecordar ? (
+              <a
+                href={lead.recordatorio.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => onRecordar(lead)}
+                className="mt-1 inline-block rounded-md bg-ok px-2.5 py-1.5 text-xs font-semibold text-white transition hover:brightness-110"
+              >
+                Recordar por WhatsApp
+              </a>
+            ) : null}
+          </div>
+        ) : (
+          <p className="mt-1.5 rounded-md bg-alerta/10 px-2 py-1 text-xs font-medium text-alerta">
+            Prueba el {formatoFechaCorta(lead.pruebaFecha)}
+          </p>
+        )
       ) : null}
       <div className="mt-2 flex items-center justify-between gap-2 text-xs text-tinta-suave">
         <span className="min-w-0 truncate">
@@ -105,6 +153,7 @@ function ContenidoTarjeta({ lead }: { lead: LeadDeTablero }) {
           {lead.viaApi ? ` · vía ${lead.viaApi}` : ""}
         </span>
         <span className="shrink-0 tabular-nums">
+          {lead.telefonoUltimos4 ? `···${lead.telefonoUltimos4} · ` : ""}
           {lead.diasEnEtapa === 0 ? "hoy" : `hace ${lead.diasEnEtapa} d`}
         </span>
       </div>
@@ -115,9 +164,11 @@ function ContenidoTarjeta({ lead }: { lead: LeadDeTablero }) {
 function Tarjeta({
   lead,
   onAccion,
+  onRecordar,
 }: {
   lead: LeadDeTablero;
   onAccion: (accion: EstadoLead, lead: LeadDeTablero) => void;
+  onRecordar: (lead: LeadDeTablero) => void;
 }) {
   const arrastrable = ABIERTAS.includes(lead.estado);
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -139,7 +190,7 @@ function Tarjeta({
           : ""
       } ${isDragging ? "opacity-30" : ""}`}
     >
-      <ContenidoTarjeta lead={lead} />
+      <ContenidoTarjeta lead={lead} onRecordar={onRecordar} />
       <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-borde pt-2">
         <Link
           href={`/crm/${lead.id}`}
@@ -183,7 +234,16 @@ function Tarjeta({
   );
 }
 
-function TarjetaCerrada({ lead }: { lead: LeadDeTablero }) {
+function TarjetaCerrada({
+  lead,
+  onAccion,
+}: {
+  lead: LeadDeTablero;
+  onAccion: (accion: EstadoLead, lead: LeadDeTablero) => void;
+}) {
+  // Un perdido se puede REABRIR (decisión del cliente 2026-07-10); un
+  // convertido no: ya es alumno.
+  const destinos = COLUMNAS.filter((e) => puedeTransicionar(lead.estado, e));
   return (
     <li className="rounded-xl bg-white/5 p-3 text-sm text-white/90 ring-1 ring-white/10">
       <div className="flex items-center justify-between gap-2">
@@ -193,12 +253,40 @@ function TarjetaCerrada({ lead }: { lead: LeadDeTablero }) {
         >
           {lead.nombre}
         </Link>
+        {lead.telefonoUltimos4 ? (
+          <span className="shrink-0 text-xs tabular-nums text-white/60">
+            ···{lead.telefonoUltimos4}
+          </span>
+        ) : null}
       </div>
       <p className="mt-0.5 truncate text-xs text-white/70">
         {lead.estado === "perdido"
           ? (lead.motivoPerdida ?? "sin motivo")
           : "ya es alumno"}
       </p>
+      {destinos.length > 0 ? (
+        <details className="mt-1.5">
+          <summary className="cursor-pointer list-none rounded-md px-1 py-1 text-xs font-semibold text-white/80 transition hover:text-white">
+            Reabrir ▾
+          </summary>
+          <div className="mt-1 rounded-xl bg-white/10 p-1">
+            {destinos.map((destino) => (
+              <button
+                key={destino}
+                type="button"
+                onClick={(e) => {
+                  (e.currentTarget.closest("details") as HTMLDetailsElement).open =
+                    false;
+                  onAccion(destino, lead);
+                }}
+                className="block w-full cursor-pointer rounded-lg px-2.5 py-2.5 text-left text-xs font-medium text-white transition hover:bg-white/15 active:bg-white/15"
+              >
+                → {ETIQUETA_ESTADO_LEAD[destino]}
+              </button>
+            ))}
+          </div>
+        </details>
+      ) : null}
     </li>
   );
 }
@@ -209,10 +297,12 @@ function Columna({
   estado,
   tarjetas,
   onAccion,
+  onRecordar,
 }: {
   estado: EstadoLead;
   tarjetas: LeadDeTablero[];
   onAccion: (accion: EstadoLead, lead: LeadDeTablero) => void;
+  onRecordar: (lead: LeadDeTablero) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: estado });
   const abierta = ABIERTAS.includes(estado);
@@ -241,9 +331,18 @@ function Columna({
             {isOver ? "Soltá acá" : "Vacío"}
           </li>
         ) : abierta ? (
-          tarjetas.map((l) => <Tarjeta key={l.id} lead={l} onAccion={onAccion} />)
+          tarjetas.map((l) => (
+            <Tarjeta
+              key={l.id}
+              lead={l}
+              onAccion={onAccion}
+              onRecordar={onRecordar}
+            />
+          ))
         ) : (
-          tarjetas.map((l) => <TarjetaCerrada key={l.id} lead={l} />)
+          tarjetas.map((l) => (
+            <TarjetaCerrada key={l.id} lead={l} onAccion={onAccion} />
+          ))
         )}
       </ul>
     </section>
@@ -363,11 +462,15 @@ function CamposClaseDePrueba({
         </Select>
       </Campo>
       <Campo etiqueta="Fecha">
-        <InputFecha
+        {/* Acá SÍ va el calendario nativo (decisión del cliente 2026-07-10):
+            la prueba es una fecha cercana y elegirla del almanaque es más
+            rápido. Las fechas lejanas (nacimientos) siguen escribiéndose a
+            mano con InputFecha en el resto del sistema. */}
+        <Input
           name="fecha"
+          type="date"
           required
           min={hoy}
-          mensajeMin="La fecha de la clase de prueba no puede ser pasada"
         />
       </Campo>
     </>
@@ -462,6 +565,32 @@ export function TableroKanban({
       fd.set("leadId", String(lead.id));
       fd.set("destino", destino);
       const resultado = await moverLead({}, fd);
+      if (resultado.error) {
+        setLista(anterior);
+        setAviso(resultado.error);
+      } else {
+        router.refresh();
+      }
+    });
+  }
+
+  /**
+   * El botón «Recordar por WhatsApp» de la tarjeta: el <a> ya abrió el chat;
+   * acá se marca "ya se le recordó" (optimista, con reversión si falla).
+   */
+  function recordarPrueba(lead: LeadDeTablero) {
+    const anterior = lista;
+    setLista((ls) =>
+      ls.map((l) =>
+        l.id === lead.id && l.recordatorio
+          ? { ...l, recordatorio: { ...l.recordatorio, recordada: true } }
+          : l,
+      ),
+    );
+    arrancarTransicion(async () => {
+      const fd = new FormData();
+      fd.set("leadId", String(lead.id));
+      const resultado = await marcarPruebaRecordada({}, fd);
       if (resultado.error) {
         setLista(anterior);
         setAviso(resultado.error);
@@ -634,6 +763,7 @@ export function TableroKanban({
                 estado={estado}
                 tarjetas={porEstado(estado)}
                 onAccion={ejecutarMovimiento}
+                onRecordar={recordarPrueba}
               />
             ))}
           </div>

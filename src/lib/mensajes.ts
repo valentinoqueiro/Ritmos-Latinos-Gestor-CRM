@@ -17,6 +17,14 @@ export const MENSAJE_RECONTACTO_DEFAULT =
   "Hace un tiempo que no te vemos por el estudio. ¿Todo bien? " +
   "Si querés retomar, contanos y te reservamos tu lugar.";
 
+// Recordatorio de la clase de prueba (CRM): se manda desde la tarjeta del
+// kanban el día antes o el mismo día de la clase. Placeholders: {nombre},
+// {dia} ("hoy"/"mañana"), {disciplina} y {hora}.
+export const CLAVE_MENSAJE_RECORDATORIO_PRUEBA = "mensaje_recordatorio_prueba";
+
+export const MENSAJE_RECORDATORIO_PRUEBA_DEFAULT =
+  "¡Hola {nombre}! Te recordamos que {dia} tenés tu clase de prueba de {disciplina} a las {hora} 💃 ¡Te esperamos!";
+
 /**
  * Reemplaza los placeholders {clave} por sus valores. Los placeholders sin
  * valor quedan tal cual (así un typo en la plantilla se ve, no desaparece).

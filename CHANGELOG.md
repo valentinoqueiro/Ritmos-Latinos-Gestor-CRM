@@ -2,6 +2,19 @@
 
 > Registro de cambios del sistema de gestión. Cada sesión de trabajo agrega su entrada al cierre: fecha, fase, qué se hizo, decisiones tomadas y pendientes que quedaron.
 
+## 2026-07-10 — CRM: recordatorios de clase de prueba, reabrir perdidos, calendario y fixes (pendiente de deploy)
+
+**Pedidos del cliente sobre el kanban y la ficha:**
+
+- **Fix superposición en la ficha del lead:** una nota de captura sin espacios (ej. `busco_una_actividad_…` de Meta) forzaba el ancho de la tarjeta «Datos» más allá de su columna y quedaba abajo de «Actividad». Causa CSS: `break-words` no reduce el ancho intrínseco; se pasó a `overflow-wrap:anywhere` + `min-w-0` en las columnas. Verificado con esa nota exacta: 352px justos en escritorio y sin scroll horizontal en celular.
+- **Calendario SOLO al agendar la clase de prueba** (decisión del cliente 2026-07-10): el campo fecha del modal «Clase de prueba» vuelve a ser el picker nativo (`type=date`) — para una fecha cercana es más rápido que tipear. El resto del sistema (nacimientos, etc.) sigue con la fecha escrita a mano (`InputFecha`), como se decidió antes.
+- **Recordatorio de clase de prueba en las cards** (migración `0012_prueba-recordada`, aditiva, solo en local): el día ANTES y el MISMO día de la clase, la tarjeta muestra «Mañana tiene la clase de prueba» / «¡HOY tiene la clase de prueba!» con botón verde **«Recordar por WhatsApp»** que abre el chat con mensaje prellenado (plantilla nueva editable en Configuración, placeholders `{nombre}`, `{dia}`, `{disciplina}`, `{hora}`) y marca **«Ya se le recordó»** (optimista + persistido en `leads.prueba_recordada_en` + rastro en el historial con quién y para qué fecha). Re-agendar la prueba resetea el recordatorio. Regla pura `recordatorioDePrueba` testeada (cruce de mes incluido).
+- **Últimos 4 dígitos del teléfono** al pie de cada tarjeta (abiertas y cerradas), para reconocer al lead de un vistazo.
+- **Reabrir perdidos** (decisión del cliente): las tarjetas de «Perdido» ganan «Reabrir ▾» hacia cualquier etapa abierta (`reglas-leads` actualizado con tests; convertido sigue final y perdido→convertido sigue bloqueado). Al reabrir se limpia el motivo de pérdida (queda en el historial como «Reabierto: pasó a …»).
+- 153 tests en verde, typecheck y build OK. E2E completo en build de producción: 13/13 (solape en escritorio y celular, aviso+botón+wa.me con mensaje correcto, marca persistente, reapertura, agendado desde el calendario, sin recordatorio para fechas lejanas).
+
+**Pendiente (freno pactado):** aplicar `0012` a Neon (una columna nullable) y pushear/deployar con OK del cliente.
+
 ## 2026-07-10 — Invitaciones a la clase de prueba vía webhook a n8n
 
 **Contexto:** cuando un lead pasa a «Prueba agendada», el cliente quiere mandarle por email un voucher para mostrar en recepción. El voucher NO lo genera este sistema: lo arma un n8n externo; el gestor junta los datos, deja revisarlos y dispara un webhook. Contrato completo en `docs/INVITACIONES_N8N.md`.

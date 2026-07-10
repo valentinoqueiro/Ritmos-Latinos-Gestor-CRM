@@ -22,12 +22,21 @@ describe("transiciones del pipeline", () => {
     expect(puedeTransicionar("nuevo", "convertido")).toBe(false);
   });
 
-  it("los estados finales no se mueven", () => {
+  it("convertido es final: no se mueve más", () => {
     expect(puedeTransicionar("convertido", "perdido")).toBe(false);
-    expect(puedeTransicionar("perdido", "contactado")).toBe(false);
+    expect(puedeTransicionar("convertido", "nuevo")).toBe(false);
+    expect(puedeTransicionar("convertido", "contactado")).toBe(false);
     expect(esEstadoFinal("convertido")).toBe(true);
     expect(esEstadoFinal("perdido")).toBe(true);
     expect(esEstadoFinal("contactado")).toBe(false);
+  });
+
+  it("un perdido se puede reabrir a cualquier etapa abierta (decisión 2026-07-10)", () => {
+    expect(puedeTransicionar("perdido", "nuevo")).toBe(true);
+    expect(puedeTransicionar("perdido", "contactado")).toBe(true);
+    expect(puedeTransicionar("perdido", "prueba_agendada")).toBe(true);
+    // Pero no directo a convertido: primero hay que recontactarlo.
+    expect(puedeTransicionar("perdido", "convertido")).toBe(false);
   });
 
   it("se puede retroceder entre etapas abiertas (kanban, decisión 2026-07-04)", () => {

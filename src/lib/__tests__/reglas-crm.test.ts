@@ -3,8 +3,38 @@ import {
   diasEnEtapa,
   esLeadFrio,
   metricasDeLeads,
+  recordatorioDePrueba,
   sedesDeInteres,
 } from "../reglas-crm";
+
+describe("recordatorioDePrueba (solo el día antes y el mismo día)", () => {
+  const hoy = "2026-07-10";
+
+  it("la clase es hoy", () => {
+    expect(recordatorioDePrueba("2026-07-10", hoy)).toBe("hoy");
+  });
+
+  it("la clase es mañana", () => {
+    expect(recordatorioDePrueba("2026-07-11", hoy)).toBe("manana");
+  });
+
+  it("mañana cruza el fin de mes", () => {
+    expect(recordatorioDePrueba("2026-08-01", "2026-07-31")).toBe("manana");
+  });
+
+  it("falta más de un día: sin recordatorio", () => {
+    expect(recordatorioDePrueba("2026-07-12", hoy)).toBeNull();
+    expect(recordatorioDePrueba("2026-08-10", hoy)).toBeNull();
+  });
+
+  it("la clase ya pasó: sin recordatorio", () => {
+    expect(recordatorioDePrueba("2026-07-09", hoy)).toBeNull();
+  });
+
+  it("sin fecha de prueba: sin recordatorio", () => {
+    expect(recordatorioDePrueba(null, hoy)).toBeNull();
+  });
+});
 
 describe("sedesDeInteres (la sede se DERIVA de las disciplinas)", () => {
   it("una disciplina: la sede de esa disciplina", () => {

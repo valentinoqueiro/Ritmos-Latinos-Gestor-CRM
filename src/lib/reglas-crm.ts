@@ -2,6 +2,7 @@
 // disciplinas de interés y detección de leads fríos. Sin dependencias de
 // Next ni de la base; las pantallas y acciones las consumen.
 
+import { sumarDias } from "./fechas";
 import { esEstadoFinal, type EstadoLead } from "./reglas-leads";
 
 export const CLAVE_UMBRAL_LEAD_FRIO = "umbral_lead_frio_dias";
@@ -38,6 +39,26 @@ export function esLeadFrio(
 ): boolean {
   if (esEstadoFinal(estado)) return false;
   return diasEnEtapa(etapaDesde, ahora) > umbralDias;
+}
+
+// --- Recordatorio de clase de prueba -----------------------------------------
+
+export type CuandoPrueba = "hoy" | "manana";
+
+/**
+ * ¿Corresponde recordarle la clase de prueba? Solo el día antes y el mismo
+ * día (decisión del cliente 2026-07-10): devuelve cuándo es la clase, o null
+ * si falta más (o ya pasó, o no hay fecha). Fechas en YYYY-MM-DD, hora
+ * argentina (el llamador pasa hoyISO()).
+ */
+export function recordatorioDePrueba(
+  pruebaFecha: string | null,
+  hoy: string,
+): CuandoPrueba | null {
+  if (!pruebaFecha) return null;
+  if (pruebaFecha === hoy) return "hoy";
+  if (pruebaFecha === sumarDias(hoy, 1)) return "manana";
+  return null;
 }
 
 // --- Métricas del CRM (fase R5) ---------------------------------------------

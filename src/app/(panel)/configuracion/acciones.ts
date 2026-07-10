@@ -26,6 +26,7 @@ import {
 import {
   CLAVE_MENSAJE_INTERESADOS,
   CLAVE_MENSAJE_RECONTACTO,
+  CLAVE_MENSAJE_RECORDATORIO_PRUEBA,
 } from "@/lib/mensajes";
 import { CLAVE_UMBRAL_LEAD_FRIO } from "@/lib/reglas-crm";
 
@@ -301,6 +302,35 @@ export async function guardarMensajeRecontacto(
       });
     revalidatePath("/configuracion");
     revalidatePath("/crm/recontactar");
+    return { ok: true };
+  } catch (error) {
+    return mensajeDeError(error);
+  }
+}
+
+// --- Recordatorio de clase de prueba (CRM) ---------------------------------------
+
+export async function guardarMensajeRecordatorioPrueba(
+  _estado: EstadoAccion,
+  formData: FormData,
+): Promise<EstadoAccion> {
+  try {
+    await exigirSeccion("configuracion");
+    const mensaje = z
+      .string()
+      .trim()
+      .min(10, "El mensaje es muy corto")
+      .max(600, "El mensaje es muy largo")
+      .parse(formData.get("mensaje"));
+    await db
+      .insert(configuracion)
+      .values({ clave: CLAVE_MENSAJE_RECORDATORIO_PRUEBA, valor: mensaje })
+      .onConflictDoUpdate({
+        target: configuracion.clave,
+        set: { valor: mensaje },
+      });
+    revalidatePath("/configuracion");
+    revalidatePath("/crm");
     return { ok: true };
   } catch (error) {
     return mensajeDeError(error);
