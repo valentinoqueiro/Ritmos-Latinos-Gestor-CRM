@@ -2,7 +2,7 @@
 
 > Registro de cambios del sistema de gestión. Cada sesión de trabajo agrega su entrada al cierre: fecha, fase, qué se hizo, decisiones tomadas y pendientes que quedaron.
 
-## 2026-07-10 — Invitaciones a la clase de prueba vía webhook a n8n (pendiente de deploy)
+## 2026-07-10 — Invitaciones a la clase de prueba vía webhook a n8n
 
 **Contexto:** cuando un lead pasa a «Prueba agendada», el cliente quiere mandarle por email un voucher para mostrar en recepción. El voucher NO lo genera este sistema: lo arma un n8n externo; el gestor junta los datos, deja revisarlos y dispara un webhook. Contrato completo en `docs/INVITACIONES_N8N.md`.
 
@@ -15,7 +15,7 @@
 - **Fix de bug pre-existente:** las server actions de la **ficha del lead** (`/crm/[id]`) colgaban la respuesta en build de producción («Guardando…» eterno, aunque guardaban) — el mismo bug del `loading.tsx` del grupo `(panel)` corregido en R3 (`ca50a79`), pero en `crm/loading.tsx`, que aquella vez quedó porque solo se probó el kanban. Se eliminó `crm/loading.tsx` (mismo workaround; el CRM pierde el esqueleto de carga al navegar). Verificado antes/después: agregar nota y el modal de invitación completan al instante; kanban, métricas y recontactar intactos.
 - **Tests:** 19 nuevos (payload exacto con claves en orden, validaciones con mensajes, webhook configurado, URL válida) — 146 en verde, typecheck y build OK. **E2E completo** en build de producción contra un webhook fake que registra cada request: los 14 pasos en verde, con el body verificado byte a byte y el header Bearer correcto.
 
-**Pendiente (freno pactado):** aplicar `0011` a Neon y pushear/deployar con OK del cliente. La migración es una sola columna nullable: sin riesgo. Después del deploy, cargar URL y token reales cuando el n8n esté listo.
+**Deploy (2026-07-10, con OK del cliente):** migración `0011` aplicada a Neon (12/12, columna verificada, 39 leads intactos) y push a main con deploy de Vercel en Ready. **Pendiente del humano:** cargar URL y token reales en Configuración cuando el n8n esté listo (contrato en `docs/INVITACIONES_N8N.md`).
 
 ## 2026-07-05 — CRM: campañas de captación + filtros por origen y campaña (pendiente de deploy)
 
