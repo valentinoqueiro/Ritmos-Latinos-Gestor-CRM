@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useRef } from "react";
 
 type Estado = { error?: string; ok?: boolean };
 type Accion = (estado: Estado, formData: FormData) => Promise<Estado>;
@@ -26,8 +26,24 @@ export function FormAccion({
   children?: React.ReactNode;
 }) {
   const [estado, despachar, pendiente] = useActionState(accion, {});
+  const formRef = useRef<HTMLFormElement>(null);
+  const ultimoEnvio = useRef<FormData | null>(null);
+
+  // React 19 resetea el <form> después de CADA action, también cuando vuelve
+  // con error. Sin esto, un solo dato mal (DNI corto, email inválido…) borra
+  // todo lo que el usuario ya había cargado. Guardamos lo enviado y, si hubo
+  // error, lo reponemos; en el éxito dejamos que el reset limpie el form.
+  function despacharYRecordar(formData: FormData) {
+    ultimoEnvio.current = formData;
+    despachar(formData);
+  }
+
   useEffect(() => {
-    if (estado.ok) alCompletar?.();
+    if (estado.ok) {
+      alCompletar?.();
+      return;
+    }
+    if (estado.error) reponerValores(formRef.current, ultimoEnvio.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [estado]);
   const estilosBoton =
@@ -38,7 +54,7 @@ export function FormAccion({
         : "border border-borde bg-superficie text-tinta hover:bg-fondo";
 
   return (
-    <form action={despachar} className={className}>
+    <form ref={formRef} action={despacharYRecordar} className={className}>
       {children}
       {estado.error ? (
         <p
@@ -57,4 +73,49 @@ export function FormAccion({
       </button>
     </form>
   );
+}
+
+// Repone en el DOM los valores que el usuario había enviado, después de que
+// React reseteó el form por un error. Cubre inputs de texto, textareas, selects
+// (simples y múltiples) y checkboxes/radios. Los campos controlados (los que
+// manejan su propio estado, como InputFecha) ya conservan su valor solos.
+function reponerValores(
+  form: HTMLFormElement | null,
+  datos: FormData | null,
+): void {
+  if (!form || !datos) return;
+  // Un mismo name puede venir varias veces (checkboxes, select múltiple).
+  const porNombre = new Map<string, string[]>();
+  for (const [name, value] of datos.entries()) {
+    if (typeof value !== "string") continue;
+    const lista = porNombre.get(name) ?? [];
+    lista.push(value);
+    porNombre.set(name, lista);
+  }
+  for (const elemento of Array.from(form.elements)) {
+    if (
+      !(elemento instanceof HTMLInputElement) &&
+      !(elemento instanceof HTMLSelectElement) &&
+      !(elemento instanceof HTMLTextAreaElement)
+    ) {
+      continue;
+    }
+    const name = elemento.name;
+    if (!name) continue;
+    const valores = porNombre.get(name);
+    if (
+      elemento instanceof HTMLInputElement &&
+      (elemento.type === "checkbox" || elemento.type === "radio")
+    ) {
+      // Los desmarcados no viajan en el FormData: ausencia = desmarcado.
+      elemento.checked = valores?.includes(elemento.value) ?? false;
+    } else if (elemento instanceof HTMLSelectElement && elemento.multiple) {
+      const elegidos = new Set(valores ?? []);
+      for (const opcion of Array.from(elemento.options)) {
+        opcion.selected = elegidos.has(opcion.value);
+      }
+    } else if (valores && valores.length > 0) {
+      elemento.value = valores[0];
+    }
+  }
 }

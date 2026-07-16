@@ -509,6 +509,89 @@ export async function crearPlan(
   }
 }
 
+// Editar los datos de un plan ya creado (nombre, tipo, frecuencia, disciplinas).
+// El precio NO se toca acá: tiene su propio historial vía `actualizarPrecio`.
+const esquemaEditarPlan = z
+  .object({
+    planId: z.coerce.number().int().positive(),
+    nombre: z.string().trim().min(2, "Poné un nombre de al menos 2 letras"),
+    tipo: z.enum(["disciplina", "pack", "frecuencia"]),
+    frecuenciaSemanal: z
+      .string()
+      .trim()
+      .transform((v) => (v === "" ? null : Number(v)))
+      .pipe(z.number().int().min(1).max(7).nullable()),
+    disciplinaIds: z.array(z.coerce.number().int().positive()),
+  })
+  .refine(
+    (d) => d.tipo !== "frecuencia" || d.frecuenciaSemanal !== null,
+    { message: "Los planes por frecuencia necesitan cuántas veces por semana" },
+  )
+  .refine((d) => d.disciplinaIds.length > 0, {
+    message: "Elegí al menos una disciplina",
+  })
+  .refine((d) => d.tipo === "pack" || d.disciplinaIds.length === 1, {
+    message: "Solo los packs pueden tener más de una disciplina",
+  });
+
+export async function editarPlan(
+  _estado: EstadoAccion,
+  formData: FormData,
+): Promise<EstadoAccion> {
+  try {
+    const usuario = await exigirSeccion("configuracion");
+    const datos = esquemaEditarPlan.parse({
+      planId: formData.get("planId"),
+      nombre: formData.get("nombre"),
+      tipo: formData.get("tipo"),
+      frecuenciaSemanal: formData.get("frecuenciaSemanal") ?? "",
+      disciplinaIds: formData.getAll("disciplinaIds"),
+    });
+    const plan = await db.query.planes.findFirst({
+      where: eq(planes.id, datos.planId),
+    });
+    if (!plan) return { error: "El plan no existe" };
+    autorizarSede(usuario, plan.sedeId);
+
+    // Las disciplinas del plan deben ser de la misma sede.
+    for (const disciplinaId of datos.disciplinaIds) {
+      const d = await db.query.disciplinas.findFirst({
+        where: and(
+          eq(disciplinas.id, disciplinaId),
+          eq(disciplinas.sedeId, plan.sedeId),
+        ),
+      });
+      if (!d) return { error: "Elegiste una disciplina de otra sede" };
+    }
+
+    await db.transaction(async (tx) => {
+      await tx
+        .update(planes)
+        .set({
+          nombre: datos.nombre,
+          tipo: datos.tipo,
+          frecuenciaSemanal:
+            datos.tipo === "frecuencia" ? datos.frecuenciaSemanal : null,
+        })
+        .where(eq(planes.id, plan.id));
+      // Reescribe el set de disciplinas del plan.
+      await tx
+        .delete(planesDisciplinas)
+        .where(eq(planesDisciplinas.planId, plan.id));
+      await tx.insert(planesDisciplinas).values(
+        datos.disciplinaIds.map((disciplinaId) => ({
+          planId: plan.id,
+          disciplinaId,
+        })),
+      );
+    });
+    revalidatePath("/configuracion");
+    return { ok: true };
+  } catch (error) {
+    return mensajeDeError(error);
+  }
+}
+
 export async function actualizarPrecio(
   _estado: EstadoAccion,
   formData: FormData,

@@ -5,7 +5,12 @@ import { disciplinasDeSede, formatoMonto, planesDeSede } from "@/lib/operativa";
 import { sedeActiva } from "@/lib/sedes";
 import { Campo, Input, Select } from "@/componentes/campos";
 import { FormAccion } from "@/componentes/form-accion";
-import { actualizarPrecio, alternarPlan, crearPlan } from "../acciones";
+import {
+  actualizarPrecio,
+  alternarPlan,
+  crearPlan,
+  editarPlan,
+} from "../acciones";
 
 export const metadata: Metadata = { title: "Planes y precios" };
 
@@ -112,6 +117,77 @@ export default async function PaginaConfigPlanes() {
                     </button>
                   </form>
                 </div>
+
+                <details className="mt-2">
+                  <summary className="cursor-pointer text-xs font-medium text-tinta-suave">
+                    Editar datos del plan
+                  </summary>
+                  {disciplinas.length === 0 ? (
+                    <p className="mt-2 text-xs text-tinta-suave">
+                      Primero creá las disciplinas de la sede.
+                    </p>
+                  ) : (
+                    <FormAccion
+                      accion={editarPlan}
+                      textoBoton="Guardar cambios"
+                      variante="secundario"
+                      className="mt-3 grid gap-3"
+                    >
+                      <input type="hidden" name="planId" value={plan.id} />
+                      <Campo etiqueta="Nombre">
+                        <Input name="nombre" required defaultValue={plan.nombre} />
+                      </Campo>
+                      <Campo etiqueta="Tipo">
+                        <Select name="tipo" required defaultValue={plan.tipo}>
+                          <option value="disciplina">
+                            Disciplina completa
+                          </option>
+                          <option value="frecuencia">
+                            Por frecuencia (el alumno elige horarios)
+                          </option>
+                          <option value="pack">
+                            Pack de varias disciplinas
+                          </option>
+                        </Select>
+                      </Campo>
+                      <Campo etiqueta="Veces por semana (solo si es por frecuencia)">
+                        <Input
+                          name="frecuenciaSemanal"
+                          inputMode="numeric"
+                          defaultValue={plan.frecuenciaSemanal ?? ""}
+                          placeholder="Ej.: 2"
+                        />
+                      </Campo>
+                      <fieldset>
+                        <legend className="text-sm font-medium">
+                          Disciplinas
+                        </legend>
+                        <ul className="mt-1.5 grid gap-1.5">
+                          {disciplinas.map((d) => (
+                            <li key={d.id}>
+                              <label className="flex cursor-pointer items-center gap-2 text-sm">
+                                <input
+                                  type="checkbox"
+                                  name="disciplinaIds"
+                                  value={d.id}
+                                  defaultChecked={plan.disciplinas.some(
+                                    (pd) => pd.id === d.id,
+                                  )}
+                                  className="h-4 w-4 accent-[#d93240]"
+                                />
+                                {d.nombre}
+                              </label>
+                            </li>
+                          ))}
+                        </ul>
+                      </fieldset>
+                      <p className="text-xs text-tinta-suave">
+                        El precio se cambia arriba; acá solo el nombre, el tipo y
+                        las disciplinas.
+                      </p>
+                    </FormAccion>
+                  )}
+                </details>
 
                 {plan.historialPrecios.length > 1 ? (
                   <details className="mt-2">
